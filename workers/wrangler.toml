@@ -1,0 +1,18 @@
+name = "grafana-toolkit"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "grafana-toolkit-db"
+database_id = "YOUR_DATABASE_ID"  # Replace after running: wrangler d1 create grafana-toolkit-db
+
+# Static assets
+[site]
+bucket = "./public"
+
+# Environment variables (set via wrangler secret)
+# OPENAI_API_KEY - for NLP features (OpenAI)
+# OPENROUTER_API_KEY - for NLP features (OpenRouter)
+# OPENROUTER_MODEL - model name for OpenRouter (e.g., "anthropic/claude-3-haiku", "openai/gpt-4o-mini")

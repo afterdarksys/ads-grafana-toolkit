@@ -1,0 +1,53 @@
+Name: ads-grafana-toolkit
+Language: Python
+Description:
+You need to make multiple directories to support this:
+	A. simple - maps to number 1 below
+        B. cli - maps to number 2 below
+        C. template_library - maps to template library option below
+        D. Python/JS/Go SDK maps to 4 below
+        E. nlp_interface maps to 5 below 
+Use prior work as guide
+Solve pain points.
+
+Notes:
+
+  Feasible Utility Approaches
+
+  1. Simple Config → Dashboard JSON
+  - Users write YAML/TOML with intuitive fields
+  - Utility converts to Grafana's complex JSON schema
+  - Hides complexity like panel IDs, grid positions, datasource refs
+
+  2. Interactive CLI Wizard
+  - Prompts: "What do you want to monitor?" → CPU, Memory, HTTP requests
+  - Asks for datasource, time range, thresholds
+  - Generates complete dashboard
+
+  3. Template Library with Variables
+  - Pre-built templates for common scenarios (web server monitoring, database metrics, container stats)
+  - Users just fill in their specific datasource/labels
+
+  4. Python/JS SDK with Smart Defaults
+  dashboard = Dashboard("My App")
+  dashboard.add_panel("CPU Usage", query="rate(cpu_seconds_total[5m])")
+  dashboard.save()  # Outputs valid Grafana JSON
+
+  5. Natural Language Interface
+  - "Create a dashboard showing request latency p99 grouped by service"
+  - Generates appropriate panels and queries
+
+  Existing Prior Art
+
+  - grafanalib (Python) - programmatic dashboards
+  - grafonnet (Jsonnet) - templated dashboards
+  - Grafana's provisioning system
+
+  Key Pain Points to Solve
+
+  1. Query syntax (PromQL/SQL is hard for beginners)
+  2. Panel positioning (grid math is tedious)
+  3. Visualization selection (which chart type fits the data?)
+  4. Datasource configuration
+
+

@@ -1,0 +1,86 @@
+# Example: Server Monitoring Dashboard
+# Convert with: ads-grafana-toolkit convert server-monitoring.yaml -o server-monitoring.json
+
+name: "Server Monitoring"
+description: "Basic server metrics from Node Exporter"
+datasource: Prometheus
+refresh: "30s"
+time_from: "now-6h"
+tags:
+  - infrastructure
+  - node-exporter
+
+variables:
+  - name: instance
+    label: "Instance"
+    query: "label_values(node_uname_info, instance)"
+
+panels:
+  - title: "CPU Usage"
+    query: '100 - (avg(irate(node_cpu_seconds_total{mode="idle",instance=~"$instance"}[5m])) * 100)'
+    type: gauge
+    unit: percent
+    width: 6
+    height: 6
+    thresholds:
+      - value: null
+        color: green
+      - value: 70
+        color: yellow
+      - value: 90
+        color: red
+
+  - title: "Memory Usage"
+    query: '100 * (1 - (node_memory_MemAvailable_bytes{instance=~"$instance"} / node_memory_MemTotal_bytes{instance=~"$instance"}))'
+    type: gauge
+    unit: percent
+    width: 6
+    height: 6
+    thresholds:
+      - value: null
+        color: green
+      - value: 70
+        color: yellow
+      - value: 90
+        color: red
+
+  - title: "Disk Usage"
+    query: '100 - ((node_filesystem_avail_bytes{instance=~"$instance",fstype!="tmpfs"} / node_filesystem_size_bytes{instance=~"$instance",fstype!="tmpfs"}) * 100)'
+    type: timeseries
+    unit: percent
+    width: 12
+    height: 8
+
+  - title: "Network Traffic"
+    queries:
+      - expr: 'rate(node_network_receive_bytes_total{instance=~"$instance",device!~"lo|veth.*"}[5m]) * 8'
+        legend: "Receive {{device}}"
+      - expr: 'rate(node_network_transmit_bytes_total{instance=~"$instance",device!~"lo|veth.*"}[5m]) * 8'
+        legend: "Transmit {{device}}"
+    type: timeseries
+    unit: bps
+    width: 12
+    height: 8
+
+  - title: "CPU Load Average"
+    queries:
+      - expr: 'node_load1{instance=~"$instance"}'
+        legend: "1m"
+      - expr: 'node_load5{instance=~"$instance"}'
+        legend: "5m"
+      - expr: 'node_load15{instance=~"$instance"}'
+        legend: "15m"
+    type: timeseries
+    width: 12
+    height: 8
+
+  - title: "Disk I/O"
+    queries:
+      - expr: 'rate(node_disk_read_bytes_total{instance=~"$instance"}[5m])'
+        legend: "Read {{device}}"
+      - expr: 'rate(node_disk_written_bytes_total{instance=~"$instance"}[5m])'
+        legend: "Write {{device}}"
+    type: timeseries
+    unit: Bps
+    width: 12
+    height: 8
