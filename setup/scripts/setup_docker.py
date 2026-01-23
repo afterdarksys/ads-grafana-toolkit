@@ -193,19 +193,27 @@ class DockerSetup:
         """Install Docker on RHEL/CentOS/Fedora."""
         self.log("Installing Docker for RHEL/CentOS/Fedora...")
 
+        # Detect package manager (dnf preferred for modern systems, yum for legacy)
+        pkg_mgr = "dnf" if shutil.which("dnf") else "yum"
+        self.log(f"Using package manager: {pkg_mgr}")
+
+        # For dnf, use dnf-plugins-core instead of yum-utils
+        config_manager = "dnf config-manager" if pkg_mgr == "dnf" else "yum-config-manager"
+        utils_pkg = "dnf-plugins-core" if pkg_mgr == "dnf" else "yum-utils"
+
         commands = [
             # Remove old versions
-            ["sudo", "yum", "remove", "-y", "docker", "docker-client", "docker-client-latest", "docker-common",
+            ["sudo", pkg_mgr, "remove", "-y", "docker", "docker-client", "docker-client-latest", "docker-common",
              "docker-latest", "docker-latest-logrotate", "docker-logrotate", "docker-engine"],
 
-            # Install yum-utils
-            ["sudo", "yum", "install", "-y", "yum-utils"],
+            # Install utils
+            ["sudo", pkg_mgr, "install", "-y", utils_pkg],
 
             # Add Docker repository
-            ["sudo", "yum-config-manager", "--add-repo", "https://download.docker.com/linux/centos/docker-ce.repo"],
+            ["sudo", config_manager, "--add-repo", "https://download.docker.com/linux/centos/docker-ce.repo"],
 
             # Install Docker
-            ["sudo", "yum", "install", "-y", "docker-ce", "docker-ce-cli", "containerd.io", "docker-buildx-plugin", "docker-compose-plugin"],
+            ["sudo", pkg_mgr, "install", "-y", "docker-ce", "docker-ce-cli", "containerd.io", "docker-buildx-plugin", "docker-compose-plugin"],
         ]
 
         for cmd in commands:

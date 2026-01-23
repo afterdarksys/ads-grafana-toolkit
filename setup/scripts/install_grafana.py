@@ -172,6 +172,10 @@ class GrafanaInstaller:
         """Install Grafana on RHEL/CentOS/Fedora."""
         self.log("Installing Grafana for RHEL/CentOS/Fedora...")
 
+        # Detect package manager (dnf preferred for modern systems, yum for legacy)
+        pkg_mgr = "dnf" if shutil.which("dnf") else "yum"
+        self.log(f"Using package manager: {pkg_mgr}")
+
         # Create repo file
         repo_content = """[grafana]
 name=grafana
@@ -192,7 +196,7 @@ sslcacert=/etc/pki/tls/certs/ca-bundle.crt
             return False
 
         # Install Grafana
-        if not self._run_command(["sudo", "yum", "install", "-y", "grafana"]):
+        if not self._run_command(["sudo", pkg_mgr, "install", "-y", "grafana"]):
             return False
 
         return self._post_install_package()
