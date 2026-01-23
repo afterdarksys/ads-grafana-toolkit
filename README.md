@@ -164,11 +164,25 @@ ads-grafana-toolkit generate "Create a dashboard showing CPU and memory usage"
 ads-grafana-toolkit generate "Dashboard for HTTP request latency p99 grouped by service" -o api.json
 ```
 
-With OpenAI (set `OPENAI_API_KEY` env var):
+With AI providers (optional - requires API keys):
+
 ```bash
-export OPENAI_API_KEY=sk-...
+# Using Anthropic Claude (recommended)
+export ANTHROPIC_API_KEY=sk-ant-...
+export ANTHROPIC_MODEL=claude-3-5-sonnet-20241022  # optional, this is the default
 ads-grafana-toolkit generate "Create a comprehensive Kubernetes monitoring dashboard with pod resources and network metrics"
+
+# Using OpenRouter (supports multiple models)
+export OPENROUTER_API_KEY=sk-or-...
+export OPENROUTER_MODEL=anthropic/claude-3-5-haiku  # optional, defaults to openai/gpt-4o-mini
+ads-grafana-toolkit generate "Dashboard for monitoring microservices with latency and error rates"
+
+# Using OpenAI
+export OPENAI_API_KEY=sk-...
+ads-grafana-toolkit generate "Create a Redis monitoring dashboard"
 ```
+
+Note: AI support is disabled by default. The toolkit will use pattern-based generation as a fallback if no API keys are provided.
 
 ## CLI Reference
 
@@ -347,11 +361,19 @@ npm run db:create
 # Run migrations
 npm run db:migrate
 
-# Set secrets
-wrangler secret put OPENAI_API_KEY
-# OR for OpenRouter:
+# Set secrets (optional - AI features disabled by default)
+# Choose one or more AI providers:
+
+# Anthropic Claude (recommended)
+wrangler secret put ANTHROPIC_API_KEY
+wrangler secret put ANTHROPIC_MODEL  # optional, e.g., "claude-3-5-sonnet-20241022"
+
+# OpenRouter (supports multiple models)
 wrangler secret put OPENROUTER_API_KEY
-wrangler secret put OPENROUTER_MODEL  # e.g., "anthropic/claude-3-haiku"
+wrangler secret put OPENROUTER_MODEL  # optional, e.g., "anthropic/claude-3-5-haiku"
+
+# OpenAI
+wrangler secret put OPENAI_API_KEY
 
 # Deploy
 npm run deploy
@@ -362,9 +384,13 @@ npm run deploy
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_PATH` | SQLite database path (default: `dashboards.db`) |
-| `OPENAI_API_KEY` | OpenAI API key for NLP features |
-| `OPENROUTER_API_KEY` | OpenRouter API key (alternative to OpenAI) |
-| `OPENROUTER_MODEL` | Model name for OpenRouter (e.g., `anthropic/claude-3-haiku`) |
+| `ANTHROPIC_API_KEY` | Anthropic Claude API key for NLP features (optional) |
+| `ANTHROPIC_MODEL` | Model name for Anthropic (default: `claude-3-5-sonnet-20241022`) |
+| `OPENROUTER_API_KEY` | OpenRouter API key for multi-model support (optional) |
+| `OPENROUTER_MODEL` | Model name for OpenRouter (default: `openai/gpt-4o-mini`) |
+| `OPENAI_API_KEY` | OpenAI API key for NLP features (optional) |
+
+**Note:** AI features are disabled by default. Pattern-based generation is used as a fallback when no API keys are configured. Priority order: Anthropic → OpenRouter → OpenAI → Pattern-based.
 
 ## License
 

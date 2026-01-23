@@ -30,6 +30,62 @@ function createPanel(id: number, title: string, query: string, type: string, uni
   };
 }
 
+async function generateWithAnthropic(prompt: string, apiKey: string, modelName?: string): Promise<any> {
+  const systemPrompt = `You are a Grafana dashboard generator. Given a natural language description,
+output a JSON object with the following structure:
+{
+  "title": "Dashboard Title",
+  "panels": [
+    {
+      "title": "Panel Title",
+      "query": "PromQL query",
+      "type": "timeseries|stat|gauge|table",
+      "unit": "percent|bytes|s|ops|reqps|short"
+    }
+  ]
+}
+
+Use appropriate PromQL queries for Prometheus. Common metrics:
+- CPU: node_cpu_seconds_total, container_cpu_usage_seconds_total
+- Memory: node_memory_MemAvailable_bytes, container_memory_usage_bytes
+- HTTP: http_requests_total, http_request_duration_seconds_bucket
+- Database: pg_stat_database_xact_commit, mysql_global_status_queries
+
+Only output valid JSON, no explanations.`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: modelName || 'claude-3-5-sonnet-20241022',
+      max_tokens: 1024,
+      messages: [
+        { role: 'user', content: `${systemPrompt}\n\nUser request: ${prompt}` },
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Anthropic API error: ${response.status}`);
+  }
+
+  const data = await response.json() as any;
+  const content = data.content?.[0]?.text || '';
+
+  // Extract JSON from response
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return JSON.parse(jsonMatch[0]);
+  }
+
+  throw new Error('No JSON found in response');
+}
+
 async function generateWithLLM(prompt: string, apiKey: string, useOpenRouter: boolean, modelName?: string): Promise<any> {
   const systemPrompt = `You are a Grafana dashboard generator. Given a natural language description,
 output a JSON object with the following structure:
@@ -137,24 +193,41 @@ export async function generateFromPrompt(
   datasource: string,
   openaiKey?: string,
   openrouterKey?: string,
-  openrouterModel?: string
+  openrouterModel?: string,
+  anthropicKey?: string,
+  anthropicModel?: string
 ): Promise<any> {
   let spec: { title: string; panels: any[] };
 
-  // Try OpenRouter first if key is provided
-  if (openrouterKey) {
+  // Try Anthropic first if key is provided
+  if (anthropicKey) {
+    try {
+      spec = await generateWithAnthropic(prompt, anthropicKey, anthropicModel);
+    } catch {
+      // Fall through to next provider
+    }
+  }
+
+  // Try OpenRouter second if key is provided and Anthropic didn't work
+  if (!spec && openrouterKey) {
     try {
       spec = await generateWithLLM(prompt, openrouterKey, true, openrouterModel);
     } catch {
-      spec = generateWithPatterns(prompt);
+      // Fall through to next provider
     }
-  } else if (openaiKey) {
+  }
+
+  // Try OpenAI third if key is provided
+  if (!spec && openaiKey) {
     try {
       spec = await generateWithLLM(prompt, openaiKey, false);
     } catch {
-      spec = generateWithPatterns(prompt);
+      // Fall through to patterns
     }
-  } else {
+  }
+
+  // Fallback to pattern matching
+  if (!spec) {
     spec = generateWithPatterns(prompt);
   }
 

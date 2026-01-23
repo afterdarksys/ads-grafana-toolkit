@@ -9,6 +9,8 @@ type Bindings = {
   OPENAI_API_KEY?: string;
   OPENROUTER_API_KEY?: string;
   OPENROUTER_MODEL?: string;
+  ANTHROPIC_API_KEY?: string;
+  ANTHROPIC_MODEL?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -72,7 +74,15 @@ app.post('/api/dashboards', async (c) => {
     dashboard = createFromTemplate(body.template, body.datasource || 'Prometheus', body.variables || {});
     if (body.title) dashboard.title = body.title;
   } else if (source === 'nlp') {
-    dashboard = await generateFromPrompt(body.prompt, body.datasource || 'Prometheus', c.env.OPENAI_API_KEY, c.env.OPENROUTER_API_KEY, c.env.OPENROUTER_MODEL);
+    dashboard = await generateFromPrompt(
+      body.prompt,
+      body.datasource || 'Prometheus',
+      c.env.OPENAI_API_KEY,
+      c.env.OPENROUTER_API_KEY,
+      c.env.OPENROUTER_MODEL,
+      c.env.ANTHROPIC_API_KEY,
+      c.env.ANTHROPIC_MODEL
+    );
   } else {
     dashboard = createBasicDashboard(body);
   }
@@ -171,7 +181,9 @@ app.post('/api/generate', async (c) => {
     body.datasource || 'Prometheus',
     c.env.OPENAI_API_KEY,
     c.env.OPENROUTER_API_KEY,
-    c.env.OPENROUTER_MODEL
+    c.env.OPENROUTER_MODEL,
+    c.env.ANTHROPIC_API_KEY,
+    c.env.ANTHROPIC_MODEL
   );
 
   return c.json({

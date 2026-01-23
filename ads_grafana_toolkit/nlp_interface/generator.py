@@ -119,9 +119,11 @@ class NLPGenerator:
     datasource: Optional[Datasource] = None
     use_openai: bool = True
     use_openrouter: bool = True
+    use_anthropic: bool = True
 
     def __post_init__(self):
         self._openai_client = None
+        self._anthropic_client = None
         self._openrouter_key = os.environ.get("OPENROUTER_API_KEY")
         self._openrouter_model = os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 
@@ -134,11 +136,27 @@ class NLPGenerator:
             except ImportError:
                 pass
 
+        if self.use_anthropic:
+            try:
+                import anthropic
+                api_key = os.environ.get("ANTHROPIC_API_KEY")
+                if api_key:
+                    self._anthropic_client = anthropic.Anthropic(api_key=api_key)
+            except ImportError:
+                pass
+
     def generate(self, prompt: str, datasource: Optional[Union[Datasource, str]] = None) -> Dashboard:
         """Generate a dashboard from a natural language prompt."""
         ds = self._resolve_datasource(datasource)
 
-        # Try OpenRouter first if configured
+        # Try Anthropic first if configured
+        if self._anthropic_client and self.use_anthropic:
+            try:
+                return self._generate_with_anthropic(prompt, ds)
+            except Exception:
+                pass
+
+        # Try OpenRouter second if configured
         if self._openrouter_key and self.use_openrouter:
             try:
                 return self._generate_with_openrouter(prompt, ds)
@@ -206,6 +224,51 @@ Use appropriate PromQL queries for Prometheus. Only output valid JSON, no explan
             result = json.loads(response.read().decode())
 
         content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+        json_match = re.search(r'\{[\s\S]*\}', content)
+        if json_match:
+            spec = json.loads(json_match.group())
+        else:
+            raise ValueError("No JSON found in response")
+
+        return self._build_dashboard_from_spec(spec, datasource)
+
+    def _generate_with_anthropic(self, prompt: str, datasource: Datasource) -> Dashboard:
+        """Generate dashboard using Anthropic Claude API."""
+        system_prompt = """You are a Grafana dashboard generator. Given a natural language description,
+output a JSON object with the following structure:
+{
+  "title": "Dashboard Title",
+  "panels": [
+    {
+      "title": "Panel Title",
+      "query": "PromQL query",
+      "type": "timeseries|stat|gauge|table",
+      "unit": "percent|bytes|s|ops|reqps|short"
+    }
+  ]
+}
+
+Use appropriate PromQL queries for Prometheus. Common metrics:
+- CPU: node_cpu_seconds_total, container_cpu_usage_seconds_total
+- Memory: node_memory_MemAvailable_bytes, container_memory_usage_bytes
+- Disk: node_filesystem_avail_bytes
+- Network: node_network_receive_bytes_total
+- HTTP: http_requests_total, http_request_duration_seconds_bucket
+- Pods: kube_pod_status_phase, container_*
+
+Only output valid JSON, no explanations."""
+
+        message = self._anthropic_client.messages.create(
+            model=os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"),
+            max_tokens=1024,
+            messages=[
+                {"role": "user", "content": f"{system_prompt}\n\nUser request: {prompt}"}
+            ],
+            temperature=0.3,
+        )
+
+        content = message.content[0].text
+        # Extract JSON from response
         json_match = re.search(r'\{[\s\S]*\}', content)
         if json_match:
             spec = json.loads(json_match.group())
