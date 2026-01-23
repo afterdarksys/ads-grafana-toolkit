@@ -35,7 +35,7 @@
     },
     {
       "parameters": {
-        "functionCode": "// Calculate scaling requirements\nconst currentMetrics = $input.first().json;\nconst currentOCPUs = 26; // Total from infrastructure\nconst scalePercent = 0.15; // 15% increase\n\nconst additionalOCPUs = Math.ceil(currentOCPUs * scalePercent / 2) * 2; // Round to even number\nconst instanceShape = \"VM.Standard.E5.Flex\";\n\n// Determine instance configuration\nconst newInstances = [];\nconst instanceCount = Math.ceil(additionalOCPUs / 4); // 4 OCPUs per instance\n\nfor (let i = 0; i < instanceCount; i++) {\n  newInstances.push({\n    shape: instanceShape,\n    ocpus: 4,\n    memory_gb: 16,\n    display_name: `auto-scale-${Date.now()}-${i+1}`\n  });\n}\n\nreturn {\n  json: {\n    scaling_decision: {\n      trigger: \"capacity_threshold\",\n      current_ocpus: currentOCPUs,\n      scale_percent: scalePercent * 100,\n      additional_ocpus: additionalOCPUs,\n      new_instances: newInstances,\n      estimated_cost: (additionalOCPUs * 0.0340 * 730).toFixed(2),\n      triggered_by: currentMetrics\n    }\n  }\n};"
+        "functionCode": "// Calculate scaling requirements with budget limit\nconst currentMetrics = $input.first().json;\nconst currentOCPUs = 26; // Total from infrastructure\nconst scalePercent = 0.15; // 15% increase\n\n// Budget constraints\nconst CURRENT_MONTHLY_COST = 900; // Current baseline\nconst MAX_MONTHLY_BUDGET = 1300; // Hard limit\nconst COST_PER_OCPU_MONTH = 0.0340 * 730; // E5.Flex pricing\n\nconst additionalOCPUs = Math.ceil(currentOCPUs * scalePercent / 2) * 2; // Round to even number\nconst estimatedNewCost = additionalOCPUs * COST_PER_OCPU_MONTH;\nconst projectedTotalCost = CURRENT_MONTHLY_COST + estimatedNewCost;\n\n// Budget check - abort if would exceed limit\nif (projectedTotalCost > MAX_MONTHLY_BUDGET) {\n  return {\n    json: {\n      scaling_decision: {\n        abort: true,\n        reason: \"budget_limit_exceeded\",\n        current_cost: CURRENT_MONTHLY_COST,\n        projected_cost: projectedTotalCost.toFixed(2),\n        budget_limit: MAX_MONTHLY_BUDGET,\n        message: `Cannot scale: would exceed $${MAX_MONTHLY_BUDGET} budget (projected: $${projectedTotalCost.toFixed(2)})`\n      }\n    }\n  };\n}\n\nconst instanceShape = \"VM.Standard.E5.Flex\";\n\n// Determine instance configuration\nconst newInstances = [];\nconst instanceCount = Math.ceil(additionalOCPUs / 4); // 4 OCPUs per instance\n\nfor (let i = 0; i < instanceCount; i++) {\n  newInstances.push({\n    shape: instanceShape,\n    ocpus: 4,\n    memory_gb: 16,\n    display_name: `auto-scale-${Date.now()}-${i+1}`\n  });\n}\n\nreturn {\n  json: {\n    scaling_decision: {\n      abort: false,\n      trigger: \"capacity_threshold\",\n      current_ocpus: currentOCPUs,\n      scale_percent: scalePercent * 100,\n      additional_ocpus: additionalOCPUs,\n      new_instances: newInstances,\n      estimated_cost: estimatedNewCost.toFixed(2),\n      current_monthly_cost: CURRENT_MONTHLY_COST,\n      projected_monthly_cost: projectedTotalCost.toFixed(2),\n      budget_limit: MAX_MONTHLY_BUDGET,\n      budget_remaining: (MAX_MONTHLY_BUDGET - projectedTotalCost).toFixed(2),\n      triggered_by: currentMetrics\n    }\n  }\n};"
       },
       "name": "Calculate Scaling Requirements",
       "type": "n8n-nodes-base.function",
@@ -151,6 +151,128 @@
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.scaling_decision.abort}}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "name": "Check Budget Limit",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_WEBHOOK_URL}}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=🚨 *Auto-Scale Budget Limit Exceeded*\n\n*Reason:* {{$json.scaling_decision.reason}}\n*Current Cost:* ${{$json.scaling_decision.current_cost}}\n*Projected Cost:* ${{$json.scaling_decision.projected_cost}}\n*Budget Limit:* ${{$json.scaling_decision.budget_limit}}\n\n*Message:* {{$json.scaling_decision.message}}\n\n⚠️ Auto-scaling has been blocked to prevent budget overrun."
+            },
+            {
+              "name": "username",
+              "value": "Auto-Scale Monitor"
+            },
+            {
+              "name": "icon_emoji",
+              "value": ":warning:"
+            }
+          ]
+        }
+      },
+      "name": "Budget Limit Exceeded Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_WEBHOOK_URL}}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=✅ *Auto-Scale Complete*\n\n*Action:* Scale Up\n*Instances Added:* {{$json.scaling_decision.new_instances.length}}\n*Additional OCPUs:* {{$json.scaling_decision.additional_ocpus}}\n*Cost Impact:* +${{$json.scaling_decision.estimated_cost}}/month\n\n*Budget Status:*\n• Current: ${{$json.scaling_decision.current_monthly_cost}}\n• Projected: ${{$json.scaling_decision.projected_monthly_cost}}\n• Limit: ${{$json.scaling_decision.budget_limit}}\n• Remaining: ${{$json.scaling_decision.budget_remaining}}"
+            },
+            {
+              "name": "username",
+              "value": "Auto-Scale Monitor"
+            },
+            {
+              "name": "icon_emoji",
+              "value": ":rocket:"
+            }
+          ]
+        }
+      },
+      "name": "Slack - Scaling Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1450, 100]
+    },
+    {
+      "parameters": {
+        "operation": "sendEmail",
+        "fromEmail": "alerts@afterdarksys.com",
+        "toEmail": "={{$env.ALERT_EMAIL}}",
+        "subject": "=🚀 Auto-Scale Event: Capacity Increased",
+        "emailFormat": "html",
+        "text": "=<h2>Auto-Scale Event: Scale Up</h2>\n\n<p>Infrastructure has automatically scaled up to handle increased capacity.</p>\n\n<h3>Details:</h3>\n<ul>\n  <li><strong>Instances Added:</strong> {{$json.scaling_decision.new_instances.length}}</li>\n  <li><strong>Additional OCPUs:</strong> {{$json.scaling_decision.additional_ocpus}}</li>\n  <li><strong>Cost Impact:</strong> +${{$json.scaling_decision.estimated_cost}}/month</li>\n</ul>\n\n<h3>Budget Status:</h3>\n<ul>\n  <li><strong>Current Monthly Cost:</strong> ${{$json.scaling_decision.current_monthly_cost}}</li>\n  <li><strong>Projected Monthly Cost:</strong> ${{$json.scaling_decision.projected_monthly_cost}}</li>\n  <li><strong>Budget Limit:</strong> ${{$json.scaling_decision.budget_limit}}</li>\n  <li><strong>Remaining Budget:</strong> ${{$json.scaling_decision.budget_remaining}}</li>\n</ul>\n\n<p><strong>Timestamp:</strong> {{$now.toISO()}}</p>"
+      },
+      "name": "Email - Scaling Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SLACK_WEBHOOK_URL}}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=📉 *Auto-Scale: Capacity Reduced*\n\n*Action:* Scale Down\n*Reason:* Low utilization detected\n*Cost Savings:* Resources deallocated\n\n⚡ Infrastructure optimized automatically."
+            },
+            {
+              "name": "username",
+              "value": "Auto-Scale Monitor"
+            },
+            {
+              "name": "icon_emoji",
+              "value": ":chart_with_downwards_trend:"
+            }
+          ]
+        }
+      },
+      "name": "Slack - Scale Down Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "operation": "sendEmail",
+        "fromEmail": "alerts@afterdarksys.com",
+        "toEmail": "={{$env.ALERT_EMAIL}}",
+        "subject": "=📉 Auto-Scale Event: Capacity Reduced",
+        "emailFormat": "html",
+        "text": "=<h2>Auto-Scale Event: Scale Down</h2>\n\n<p>Infrastructure has automatically scaled down due to low utilization.</p>\n\n<h3>Details:</h3>\n<ul>\n  <li><strong>Action:</strong> Scale Down</li>\n  <li><strong>Reason:</strong> {{$json.message}}</li>\n  <li><strong>Cost Impact:</strong> Reduced (instances deallocated)</li>\n</ul>\n\n<p><strong>Timestamp:</strong> {{$now.toISO()}}</p>"
+      },
+      "name": "Email - Scale Down Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1050, 500]
     }
   ],
   "connections": {
@@ -164,7 +286,13 @@
       ]
     },
     "Calculate Scaling Requirements": {
-      "main": [[{ "node": "OCI - Launch Instance", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Check Budget Limit", "type": "main", "index": 0 }]]
+    },
+    "Check Budget Limit": {
+      "main": [
+        [{ "node": "OCI - Launch Instance", "type": "main", "index": 0 }],
+        [{ "node": "Budget Limit Exceeded Alert", "type": "main", "index": 0 }]
+      ]
     },
     "OCI - Launch Instance": {
       "main": [[{ "node": "Wait for Instance Ready", "type": "main", "index": 0 }]]
@@ -173,10 +301,20 @@
       "main": [[{ "node": "Add to K3s Cluster", "type": "main", "index": 0 }]]
     },
     "Add to K3s Cluster": {
-      "main": [[{ "node": "Notify - Scaling Complete", "type": "main", "index": 0 }]]
+      "main": [[
+        { "node": "Notify - Scaling Complete", "type": "main", "index": 0 },
+        { "node": "Slack - Scaling Success", "type": "main", "index": 0 },
+        { "node": "Email - Scaling Alert", "type": "main", "index": 0 }
+      ]]
     },
     "Check If Scale Down Needed": {
       "main": [[{ "node": "Scale Down Logic", "type": "main", "index": 0 }]]
+    },
+    "Scale Down Logic": {
+      "main": [[
+        { "node": "Slack - Scale Down Alert", "type": "main", "index": 0 },
+        { "node": "Email - Scale Down Alert", "type": "main", "index": 0 }
+      ]]
     }
   },
   "settings": {},

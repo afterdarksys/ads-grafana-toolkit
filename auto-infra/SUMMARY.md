@@ -2,7 +2,7 @@
 
 ## What We Built Today
 
-A **hybrid Go + n8n auto-scaling platform** for dynamic infrastructure management within your $1,100/month OCI budget.
+A **hybrid Go + n8n auto-scaling platform** for dynamic infrastructure management with $1,300/month budget enforcement and production-grade alerting.
 
 ## Components Delivered
 
@@ -33,18 +33,25 @@ A **hybrid Go + n8n auto-scaling platform** for dynamic infrastructure managemen
 - Disk quota management
 - Health check endpoint
 
-### 3. **Auto-Scale Workflow** (n8n)
+### 3. **Auto-Scale Workflow** (n8n) - Production Ready
 - Triggered by capacity-monitor webhooks
 - Calculates 15-20% expansion requirements
+- **Hard budget enforcement: $1,300/month limit**
 - Provisions new OCI E5.Flex instances via API
 - Adds instances to K3s cluster
-- Sends completion notifications
+- **Slack + Email alerts for ALL scaling events**
 
 **Logic:**
 - Scale UP: When CPU/Memory/Disk ≥ 80%
 - Scale DOWN: When CPU < 30% sustained
+- **Budget Check: Aborts scaling if would exceed $1,300**
 - Maintains minimum capacity buffer
-- Estimated cost calculation per scaling event
+- Real-time cost projection and tracking
+
+**Production Alerts:**
+- ✅ Scale Up Complete → Slack + Email (budget status, projected cost)
+- 📉 Scale Down Complete → Slack + Email (cost savings)
+- 🚨 Budget Limit Hit → Slack alert (scaling blocked, manual intervention needed)
 
 ### 4. **HostScience.io Provisioning Workflow** (n8n)
 - Customer signup webhook endpoint
