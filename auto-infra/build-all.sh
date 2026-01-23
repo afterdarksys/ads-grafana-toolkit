@@ -17,8 +17,8 @@ echo ""
 echo "=== Building provisioning-agent ==="
 cd ../provisioning-agent
 go mod tidy
-GOOS=linux GOARCH=amd64 go build -o provisioning-agent-linux-amd64 -ldflags="-s -w" .
-GOOS=linux GOARCH=arm64 go build -o provisioning-agent-linux-arm64 -ldflags="-s -w" .
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o provisioning-agent-linux-amd64 -ldflags="-s -w" .
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o provisioning-agent-linux-arm64 -ldflags="-s -w" .
 echo "✅ provisioning-agent built"
 echo ""
 

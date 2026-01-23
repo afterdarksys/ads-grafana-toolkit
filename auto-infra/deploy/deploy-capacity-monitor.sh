@@ -1,6 +1,4 @@
 #!/bin/bash
-set -e
-
 # Deploy capacity-monitor to all OCI instances
 # Usage: ./deploy-capacity-monitor.sh [n8n_webhook_url]
 
@@ -8,6 +6,8 @@ N8N_WEBHOOK_URL="${1:-https://n8n.afterdarksys.com/webhook/capacity-alert}"
 BINARY_AMD64="../daemons/capacity-monitor/capacity-monitor-linux-amd64"
 BINARY_ARM64="../daemons/capacity-monitor/capacity-monitor-linux-arm64"
 SERVICE_FILE="../daemons/capacity-monitor/capacity-monitor.service"
+SSH_KEY="${HOME}/.ssh/oci_diseasezone"
+SSH_OPTS="-i $SSH_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10"
 
 # Get list of all running instances
 echo "Fetching OCI instances..."
@@ -52,17 +52,32 @@ while IFS='|' read -r NAME SHAPE INSTANCE_ID; do
 
   echo "IP: $PUBLIC_IP"
 
+  # Try different users (ubuntu, opc, root)
+  SSH_USER=""
+  for USER in ubuntu opc root; do
+    if ssh $SSH_OPTS -o BatchMode=yes "$USER@$PUBLIC_IP" 'exit' 2>/dev/null; then
+      SSH_USER="$USER"
+      break
+    fi
+  done
+
+  if [ -z "$SSH_USER" ]; then
+    echo "❌ Could not determine SSH user for $NAME"
+    continue
+  fi
+
+  echo "SSH User: $SSH_USER"
+
   # Deploy via SSH
   echo "Copying binary..."
-  scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-    "$BINARY" "ubuntu@$PUBLIC_IP:/tmp/capacity-monitor" 2>/dev/null || {
+  scp $SSH_OPTS \
+    "$BINARY" "$SSH_USER@$PUBLIC_IP:/tmp/capacity-monitor" 2>/dev/null || {
     echo "❌ Failed to copy to $NAME"
     continue
   }
 
   echo "Installing..."
-  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-    "ubuntu@$PUBLIC_IP" << EOF
+  ssh $SSH_OPTS "$SSH_USER@$PUBLIC_IP" << EOF
 sudo mv /tmp/capacity-monitor /usr/local/bin/
 sudo chmod +x /usr/local/bin/capacity-monitor
 

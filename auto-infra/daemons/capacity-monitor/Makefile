@@ -8,8 +8,8 @@ build:
 	go build -o $(BINARY_NAME) -ldflags="-s -w" .
 
 build-linux:
-	GOOS=linux GOARCH=amd64 go build -o $(BINARY_NAME)-linux-amd64 -ldflags="-s -w" .
-	GOOS=linux GOARCH=arm64 go build -o $(BINARY_NAME)-linux-arm64 -ldflags="-s -w" .
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $(BINARY_NAME)-linux-amd64 -ldflags="-s -w" .
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o $(BINARY_NAME)-linux-arm64 -ldflags="-s -w" .
 
 clean:
 	rm -f $(BINARY_NAME) $(BINARY_NAME)-linux-*
