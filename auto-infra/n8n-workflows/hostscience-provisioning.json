@@ -1,0 +1,206 @@
+{
+  "name": "HostScience.io - Customer Provisioning",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hostscience/signup",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook - New Signup",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "hostscience-signup"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate customer ID and validate input\nconst email = $json.email;\nconst domain = $json.domain;\nconst plan = $json.plan || 'starter';\n\n// Generate unique customer ID\nconst customerId = `hsc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\n\n// Validate domain\nif (!domain || !domain.match(/^[a-z0-9.-]+$/)) {\n  throw new Error('Invalid domain format');\n}\n\n// Resource allocation based on plan\nconst planResources = {\n  starter: { cpu: '0.5', memory: '512M', disk: '10G', price: 5 },\n  professional: { cpu: '1.0', memory: '2G', disk: '50G', price: 15 },\n  business: { cpu: '2.0', memory: '4G', disk: '100G', price: 30 },\n  enterprise: { cpu: '4.0', memory: '8G', disk: '250G', price: 60 }\n};\n\nconst resources = planResources[plan] || planResources.starter;\n\nreturn {\n  json: {\n    customer_id: customerId,\n    email: email,\n    domain: domain,\n    plan: plan,\n    resources: {\n      cpu_limit: resources.cpu,\n      memory_limit: resources.memory,\n      disk_quota: resources.disk\n    },\n    pricing: {\n      monthly: resources.price,\n      currency: 'USD'\n    },\n    metadata: {\n      signup_date: new Date().toISOString(),\n      source: 'hostscience.io'\n    }\n  }\n};"
+      },
+      "name": "Generate Customer ID",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://adsas.id/admin/realms/afterdark/users",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "username",
+              "value": "={{$json.customer_id}}"
+            },
+            {
+              "name": "email",
+              "value": "={{$json.email}}"
+            },
+            {
+              "name": "enabled",
+              "value": "=true"
+            },
+            {
+              "name": "emailVerified",
+              "value": "=false"
+            },
+            {
+              "name": "attributes",
+              "value": "={\"customer_id\": [\"{{$json.customer_id}}\"], \"plan\": [\"{{$json.plan}}\"], \"service\": [\"hostscience\"]}"
+            }
+          ]
+        }
+      },
+      "name": "Keycloak - Create User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://provisioning-agent.internal:8081/provision",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "customer_id",
+              "value": "={{$json.customer_id}}"
+            },
+            {
+              "name": "email",
+              "value": "={{$json.email}}"
+            },
+            {
+              "name": "domain",
+              "value": "={{$json.domain}}"
+            },
+            {
+              "name": "service_type",
+              "value": "web"
+            },
+            {
+              "name": "plan",
+              "value": "={{$json.plan}}"
+            },
+            {
+              "name": "resources",
+              "value": "={{$json.resources}}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{$json.metadata}}"
+            }
+          ]
+        }
+      },
+      "name": "Provision Hosting Environment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://dns.us-ashburn-1.oci.oraclecloud.com/20180115/zones/{{$env.HOSTSCIENCE_ZONE_ID}}/records",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "ociApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "items",
+              "value": "=[{\"domain\": \"{{$json.domain}}\", \"rtype\": \"A\", \"rdata\": \"{{$env.WEB_SERVER_IP}}\", \"ttl\": 300}]"
+            }
+          ]
+        }
+      },
+      "name": "OCI DNS - Create A Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "sendEmail",
+        "fromEmail": "noreply@hostscience.io",
+        "toEmail": "={{$json.email}}",
+        "subject": "Welcome to HostScience.io - Your Hosting is Ready!",
+        "emailFormat": "html",
+        "text": "=<h1>Welcome to HostScience.io!</h1>\n\n<p>Your hosting account has been provisioned successfully.</p>\n\n<h2>Account Details:</h2>\n<ul>\n  <li><strong>Customer ID:</strong> {{$json.customer_id}}</li>\n  <li><strong>Domain:</strong> {{$json.domain}}</li>\n  <li><strong>Plan:</strong> {{$json.plan}}</li>\n</ul>\n\n<h2>Resources:</h2>\n<ul>\n  <li><strong>CPU:</strong> {{$json.resources.cpu_limit}} cores</li>\n  <li><strong>Memory:</strong> {{$json.resources.memory_limit}}</li>\n  <li><strong>Storage:</strong> {{$json.resources.disk_quota}}</li>\n</ul>\n\n<h2>Next Steps:</h2>\n<ol>\n  <li>Set your password: <a href=\"https://adsas.id/realms/afterdark/account\">Click here</a></li>\n  <li>Access control panel: <a href=\"https://hostscience.io/dashboard\">Dashboard</a></li>\n  <li>Upload your website files via SFTP or Git</li>\n</ol>\n\n<p>Your monthly bill: ${{$json.pricing.monthly}}</p>\n\n<p>Need help? Contact support@hostscience.io</p>\n\n<p>-- HostScience.io Team</p>"
+      },
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"customer_id\": \"{{$json.customer_id}}\",\n  \"domain\": \"{{$json.domain}}\",\n  \"plan\": \"{{$json.plan}}\",\n  \"message\": \"Your hosting account has been created! Check your email for login details.\",\n  \"login_url\": \"https://adsas.id\",\n  \"dashboard_url\": \"https://hostscience.io/dashboard\"\n}",
+        "options": {}
+      },
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"{{$json.error}}\",\n  \"message\": \"Provisioning failed. Please contact support.\"\n}",
+        "responseCode": 500
+      },
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log provisioning event\nconst event = {\n  event_type: 'customer_provisioned',\n  customer_id: $json.customer_id,\n  email: $json.email,\n  domain: $json.domain,\n  plan: $json.plan,\n  timestamp: new Date().toISOString(),\n  monthly_revenue: $json.pricing.monthly\n};\n\n// TODO: Send to analytics/metrics system\nconsole.log('PROVISIONING EVENT:', JSON.stringify(event));\n\nreturn { json: event };"
+      },
+      "name": "Log Event",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 500]
+    }
+  ],
+  "connections": {
+    "Webhook - New Signup": {
+      "main": [[{ "node": "Generate Customer ID", "type": "main", "index": 0 }]]
+    },
+    "Generate Customer ID": {
+      "main": [[{ "node": "Keycloak - Create User", "type": "main", "index": 0 }]]
+    },
+    "Keycloak - Create User": {
+      "main": [[{ "node": "Provision Hosting Environment", "type": "main", "index": 0 }]]
+    },
+    "Provision Hosting Environment": {
+      "main": [
+        [{ "node": "OCI DNS - Create A Record", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "OCI DNS - Create A Record": {
+      "main": [
+        [
+          { "node": "Send Welcome Email", "type": "main", "index": 0 },
+          { "node": "Log Event", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Send Welcome Email": {
+      "main": [[{ "node": "Respond - Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-23T00:00:00.000Z",
+  "versionId": "1"
+}

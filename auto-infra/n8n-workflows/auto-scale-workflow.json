@@ -1,0 +1,188 @@
+{
+  "name": "Auto-Scale Infrastructure",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "capacity-alert",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook - Capacity Alert",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "capacity-alert"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.metrics.cpu_percent}}",
+              "operation": "largerEqual",
+              "value2": 80
+            }
+          ],
+          "boolean": [],
+          "string": []
+        }
+      },
+      "name": "Check If Scaling Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Calculate scaling requirements\nconst currentMetrics = $input.first().json;\nconst currentOCPUs = 26; // Total from infrastructure\nconst scalePercent = 0.15; // 15% increase\n\nconst additionalOCPUs = Math.ceil(currentOCPUs * scalePercent / 2) * 2; // Round to even number\nconst instanceShape = \"VM.Standard.E5.Flex\";\n\n// Determine instance configuration\nconst newInstances = [];\nconst instanceCount = Math.ceil(additionalOCPUs / 4); // 4 OCPUs per instance\n\nfor (let i = 0; i < instanceCount; i++) {\n  newInstances.push({\n    shape: instanceShape,\n    ocpus: 4,\n    memory_gb: 16,\n    display_name: `auto-scale-${Date.now()}-${i+1}`\n  });\n}\n\nreturn {\n  json: {\n    scaling_decision: {\n      trigger: \"capacity_threshold\",\n      current_ocpus: currentOCPUs,\n      scale_percent: scalePercent * 100,\n      additional_ocpus: additionalOCPUs,\n      new_instances: newInstances,\n      estimated_cost: (additionalOCPUs * 0.0340 * 730).toFixed(2),\n      triggered_by: currentMetrics\n    }\n  }\n};"
+      },
+      "name": "Calculate Scaling Requirements",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "url": "=https://iaas.us-ashburn-1.oraclecloud.com/20160918/instances",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "ociApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "compartmentId",
+              "value": "ocid1.tenancy.oc1..aaaaaaaaiqfc57o25y3424skethbodacbasc2zy3yp2b423zj6qkhcwjkqta"
+            },
+            {
+              "name": "availabilityDomain",
+              "value": "RaUW:US-ASHBURN-AD-1"
+            },
+            {
+              "name": "shape",
+              "value": "={{$json.scaling_decision.new_instances[0].shape}}"
+            },
+            {
+              "name": "displayName",
+              "value": "={{$json.scaling_decision.new_instances[0].display_name}}"
+            },
+            {
+              "name": "shapeConfig",
+              "value": "={\"ocpus\": {{$json.scaling_decision.new_instances[0].ocpus}}, \"memoryInGBs\": {{$json.scaling_decision.new_instances[0].memory_gb}}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "OCI - Launch Instance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "url": "=http://{{$json.instance.public_ip}}:8081/health",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "name": "Wait for Instance Ready",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "command": "kubectl label node {{$json.node_name}} auto-scaled=true --overwrite"
+      },
+      "name": "Add to K3s Cluster",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://n8n.afterdarksys.com/webhook/scaling-complete",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "scale_up"
+            },
+            {
+              "name": "instances_added",
+              "value": "={{$json.scaling_decision.new_instances.length}}"
+            },
+            {
+              "name": "additional_cost",
+              "value": "={{$json.scaling_decision.estimated_cost}}"
+            }
+          ]
+        }
+      },
+      "name": "Notify - Scaling Complete",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.metrics.cpu_percent}}",
+              "operation": "smaller",
+              "value2": 30
+            }
+          ]
+        }
+      },
+      "name": "Check If Scale Down Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Find auto-scaled instances with low utilization\nconst threshold = 30; // Scale down if below 30% for sustained period\n\nreturn {\n  json: {\n    action: \"scale_down\",\n    message: \"Instance utilization below threshold for scale down\"\n  }\n};"
+      },
+      "name": "Scale Down Logic",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - Capacity Alert": {
+      "main": [[{ "node": "Check If Scaling Needed", "type": "main", "index": 0 }]]
+    },
+    "Check If Scaling Needed": {
+      "main": [
+        [{ "node": "Calculate Scaling Requirements", "type": "main", "index": 0 }],
+        [{ "node": "Check If Scale Down Needed", "type": "main", "index": 0 }]
+      ]
+    },
+    "Calculate Scaling Requirements": {
+      "main": [[{ "node": "OCI - Launch Instance", "type": "main", "index": 0 }]]
+    },
+    "OCI - Launch Instance": {
+      "main": [[{ "node": "Wait for Instance Ready", "type": "main", "index": 0 }]]
+    },
+    "Wait for Instance Ready": {
+      "main": [[{ "node": "Add to K3s Cluster", "type": "main", "index": 0 }]]
+    },
+    "Add to K3s Cluster": {
+      "main": [[{ "node": "Notify - Scaling Complete", "type": "main", "index": 0 }]]
+    },
+    "Check If Scale Down Needed": {
+      "main": [[{ "node": "Scale Down Logic", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-23T00:00:00.000Z",
+  "versionId": "1"
+}

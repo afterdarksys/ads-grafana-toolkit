@@ -1,0 +1,22 @@
+[Unit]
+Description=Capacity Monitor Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/capacity-monitor
+Restart=always
+RestartSec=10
+
+# Environment variables
+Environment="N8N_WEBHOOK_URL=https://n8n.afterdarksys.com/webhook/capacity-alert"
+Environment="METRICS_API_URL=http://localhost:8080/api/metrics"
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=capacity-monitor
+
+[Install]
+WantedBy=multi-user.target
