@@ -1,0 +1,140 @@
+# Test Container for ads-grafana-toolkit
+# Includes Grafana, Prometheus, and all toolkit dependencies
+
+FROM ubuntu:22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install base dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    python3 \
+    python3-pip \
+    sudo \
+    lsof \
+    net-tools \
+    apt-transport-https \
+    software-properties-common \
+    gnupg \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker CLI (for testing Docker-based installations)
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Grafana
+RUN mkdir -p /etc/apt/keyrings/ \
+    && wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | tee /etc/apt/keyrings/grafana.gpg > /dev/null \
+    && echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | tee /etc/apt/sources.list.d/grafana.list \
+    && apt-get update \
+    && apt-get install -y grafana \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Prometheus
+RUN useradd --no-create-home --shell /bin/false prometheus \
+    && mkdir -p /etc/prometheus /var/lib/prometheus \
+    && cd /tmp \
+    && PROM_VERSION="2.48.0" \
+    && wget https://github.com/prometheus/prometheus/releases/download/v${PROM_VERSION}/prometheus-${PROM_VERSION}.linux-amd64.tar.gz \
+    && tar xzf prometheus-${PROM_VERSION}.linux-amd64.tar.gz \
+    && cp prometheus-${PROM_VERSION}.linux-amd64/prometheus /usr/local/bin/ \
+    && cp prometheus-${PROM_VERSION}.linux-amd64/promtool /usr/local/bin/ \
+    && cp -r prometheus-${PROM_VERSION}.linux-amd64/consoles /etc/prometheus \
+    && cp -r prometheus-${PROM_VERSION}.linux-amd64/console_libraries /etc/prometheus \
+    && chown -R prometheus:prometheus /etc/prometheus /var/lib/prometheus \
+    && rm -rf /tmp/prometheus-*
+
+# Create Prometheus config
+RUN echo 'global:\n\
+  scrape_interval: 15s\n\
+\n\
+scrape_configs:\n\
+  - job_name: "prometheus"\n\
+    static_configs:\n\
+      - targets: ["localhost:9090"]\n\
+\n\
+  - job_name: "grafana"\n\
+    static_configs:\n\
+      - targets: ["localhost:3000"]' > /etc/prometheus/prometheus.yml \
+    && chown prometheus:prometheus /etc/prometheus/prometheus.yml
+
+# Install Node Exporter
+RUN cd /tmp \
+    && NODE_VERSION="1.7.0" \
+    && wget https://github.com/prometheus/node_exporter/releases/download/v${NODE_VERSION}/node_exporter-${NODE_VERSION}.linux-amd64.tar.gz \
+    && tar xzf node_exporter-${NODE_VERSION}.linux-amd64.tar.gz \
+    && cp node_exporter-${NODE_VERSION}.linux-amd64/node_exporter /usr/local/bin/ \
+    && useradd --no-create-home --shell /bin/false node_exporter \
+    && rm -rf /tmp/node_exporter-*
+
+# Install Python dependencies for toolkit
+RUN pip3 install --no-cache-dir pyyaml jinja2
+
+# Copy toolkit into container
+COPY . /opt/ads-grafana-toolkit
+WORKDIR /opt/ads-grafana-toolkit
+
+# Make scripts executable
+RUN chmod +x setup/*.py setup/scripts/*.py extras/*.py
+
+# Create a non-root user for testing
+RUN useradd -m -s /bin/bash testuser \
+    && echo "testuser:testuser" | chpasswd \
+    && usermod -aG sudo testuser \
+    && echo "testuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Create startup script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+echo "Starting services..."\n\
+\n\
+# Start Prometheus\n\
+sudo -u prometheus /usr/local/bin/prometheus \\\n\
+    --config.file=/etc/prometheus/prometheus.yml \\\n\
+    --storage.tsdb.path=/var/lib/prometheus \\\n\
+    --web.console.templates=/etc/prometheus/consoles \\\n\
+    --web.console.libraries=/etc/prometheus/console_libraries \\\n\
+    > /var/log/prometheus.log 2>&1 &\n\
+\n\
+# Start Node Exporter\n\
+sudo -u node_exporter /usr/local/bin/node_exporter \\\n\
+    > /var/log/node_exporter.log 2>&1 &\n\
+\n\
+# Start Grafana\n\
+sudo systemctl start grafana-server || /usr/sbin/grafana-server \\\n\
+    --config=/etc/grafana/grafana.ini \\\n\
+    --pidfile=/var/run/grafana/grafana-server.pid \\\n\
+    --packaging=deb \\\n\
+    cfg:default.paths.logs=/var/log/grafana \\\n\
+    cfg:default.paths.data=/var/lib/grafana \\\n\
+    cfg:default.paths.plugins=/var/lib/grafana/plugins \\\n\
+    cfg:default.paths.provisioning=/etc/grafana/provisioning \\\n\
+    > /var/log/grafana.log 2>&1 &\n\
+\n\
+echo ""\n\
+echo "Services started!"\n\
+echo ""\n\
+echo "Grafana:     http://localhost:3000 (admin/admin)"\n\
+echo "Prometheus:  http://localhost:9090"\n\
+echo "Node Exp:    http://localhost:9100/metrics"\n\
+echo ""\n\
+echo "Run audit: ./setup/scripts/audit_monitoring_stack.py"\n\
+echo ""\n\
+\n\
+# Keep container running\n\
+tail -f /dev/null\n\
+' > /usr/local/bin/start-services.sh \
+    && chmod +x /usr/local/bin/start-services.sh
+
+EXPOSE 3000 9090 9100
+
+CMD ["/usr/local/bin/start-services.sh"]
