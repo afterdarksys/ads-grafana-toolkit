@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/mem"
@@ -26,6 +28,9 @@ const (
 
 	// Alert cooldown (prevent alert spam)
 	AlertCooldown = 5 * time.Minute
+
+	// Prometheus metrics port
+	MetricsPort = ":9100"
 )
 
 type CapacityMetrics struct {
@@ -51,13 +56,70 @@ type Config struct {
 var (
 	config        Config
 	lastAlertTime time.Time
+
+	// Prometheus metrics
+	cpuUsage = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "capacity_monitor_cpu_percent",
+			Help: "Current CPU usage percentage",
+		},
+		[]string{"hostname", "instance_id"},
+	)
+	memoryUsage = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "capacity_monitor_memory_percent",
+			Help: "Current memory usage percentage",
+		},
+		[]string{"hostname", "instance_id"},
+	)
+	diskUsage = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "capacity_monitor_disk_percent",
+			Help: "Current disk usage percentage",
+		},
+		[]string{"hostname", "instance_id"},
+	)
+	networkRxBytes = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "capacity_monitor_network_rx_bytes_total",
+			Help: "Total network bytes received",
+		},
+		[]string{"hostname", "instance_id"},
+	)
+	networkTxBytes = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "capacity_monitor_network_tx_bytes_total",
+			Help: "Total network bytes transmitted",
+		},
+		[]string{"hostname", "instance_id"},
+	)
+	capacityStatus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "capacity_monitor_over_capacity",
+			Help: "Whether instance is over capacity (1) or not (0)",
+		},
+		[]string{"hostname", "instance_id"},
+	)
 )
+
+func init() {
+	// Register Prometheus metrics
+	prometheus.MustRegister(cpuUsage)
+	prometheus.MustRegister(memoryUsage)
+	prometheus.MustRegister(diskUsage)
+	prometheus.MustRegister(networkRxBytes)
+	prometheus.MustRegister(networkTxBytes)
+	prometheus.MustRegister(capacityStatus)
+}
 
 func main() {
 	log.Println("Starting capacity-monitor daemon...")
 
 	// Load configuration
 	config = loadConfig()
+
+	// Start Prometheus metrics HTTP server
+	go startMetricsServer()
 
 	// Main monitoring loop
 	ticker := time.NewTicker(CheckInterval)
@@ -68,6 +130,14 @@ func main() {
 
 	for range ticker.C {
 		runCheck()
+	}
+}
+
+func startMetricsServer() {
+	http.Handle("/metrics", promhttp.Handler())
+	log.Printf("Starting Prometheus metrics server on %s", MetricsPort)
+	if err := http.ListenAndServe(MetricsPort, nil); err != nil {
+		log.Fatalf("Failed to start metrics server: %v", err)
 	}
 }
 
@@ -112,22 +182,30 @@ func collectMetrics() CapacityMetrics {
 		InstanceID: config.InstanceID,
 	}
 
+	labels := prometheus.Labels{
+		"hostname":    config.Hostname,
+		"instance_id": config.InstanceID,
+	}
+
 	// CPU usage
 	cpuPercent, err := cpu.Percent(time.Second, false)
 	if err == nil && len(cpuPercent) > 0 {
 		metrics.CPUPercent = cpuPercent[0]
+		cpuUsage.With(labels).Set(metrics.CPUPercent)
 	}
 
 	// Memory usage
 	memInfo, err := mem.VirtualMemory()
 	if err == nil {
 		metrics.MemoryPercent = memInfo.UsedPercent
+		memoryUsage.With(labels).Set(metrics.MemoryPercent)
 	}
 
 	// Disk usage (root partition)
 	diskInfo, err := disk.Usage("/")
 	if err == nil {
 		metrics.DiskPercent = diskInfo.UsedPercent
+		diskUsage.With(labels).Set(metrics.DiskPercent)
 	}
 
 	// Network stats
@@ -135,12 +213,21 @@ func collectMetrics() CapacityMetrics {
 	if err == nil && len(netStats) > 0 {
 		metrics.NetworkRxBytes = netStats[0].BytesRecv
 		metrics.NetworkTxBytes = netStats[0].BytesSent
+		networkRxBytes.With(labels).Set(float64(metrics.NetworkRxBytes))
+		networkTxBytes.With(labels).Set(float64(metrics.NetworkTxBytes))
 	}
 
 	// Determine if over capacity
 	metrics.IsOverCapacity = metrics.CPUPercent >= CPUThreshold ||
 		metrics.MemoryPercent >= MemoryThreshold ||
 		metrics.DiskPercent >= DiskThreshold
+
+	// Update capacity status metric
+	if metrics.IsOverCapacity {
+		capacityStatus.With(labels).Set(1)
+	} else {
+		capacityStatus.With(labels).Set(0)
+	}
 
 	return metrics
 }

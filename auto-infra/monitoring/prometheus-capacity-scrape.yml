@@ -1,0 +1,32 @@
+# Prometheus scrape configuration for capacity-monitor daemons
+# Add this to your main prometheus.yml scrape_configs section
+
+scrape_configs:
+  - job_name: 'capacity-monitor'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          # ARM A1.Flex instances (Always Free - 7 instances)
+          - 'adrelay-1.afterdarksys.com:9100'
+          - 'adrelay-2.afterdarksys.com:9100'
+          - 'adsas-web-1.afterdarksys.com:9100'
+          - 'adsas-web-2.afterdarksys.com:9100'
+          - 'adsas-web-3.afterdarksys.com:9100'
+          - 'adsas-web-4.afterdarksys.com:9100'
+          - 'adsas-web-5.afterdarksys.com:9100'
+
+          # E4.Flex instance (1 instance)
+          - 'adsas-central.afterdarksys.com:9100'
+
+          # E5.Flex instances (8 instances)
+          - 'admail-1.afterdarksys.com:9100'
+          - 'admail-2.afterdarksys.com:9100'
+          - 'blaze-db-1.afterdarksys.com:9100'
+          - 'blaze-db-2.afterdarksys.com:9100'
+          - 'hostscience-web-1.afterdarksys.com:9100'
+          - 'hostscience-web-2.afterdarksys.com:9100'
+          - 'adtelco-sip-1.afterdarksys.com:9100'
+          - 'adtelco-sip-2.afterdarksys.com:9100'
+        labels:
+          environment: 'production'
+          service: 'auto-scaling-infrastructure'

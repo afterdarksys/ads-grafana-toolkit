@@ -1,0 +1,297 @@
+{
+  "dashboard": {
+    "title": "Auto-Scaling Infrastructure - Capacity Monitor",
+    "uid": "auto-scaling-capacity",
+    "tags": ["auto-scaling", "capacity", "infrastructure"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Fleet CPU Usage",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "capacity_monitor_cpu_percent",
+            "legendFormat": "{{hostname}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "CPU %", "max": 100, "min": 0}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [80], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "1m",
+          "handler": 1,
+          "name": "CPU Capacity Alert",
+          "noDataState": "no_data",
+          "notifications": []
+        },
+        "thresholds": [
+          {"value": 80, "colorMode": "critical", "op": "gt", "fill": true, "line": true}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Fleet Memory Usage",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "capacity_monitor_memory_percent",
+            "legendFormat": "{{hostname}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Memory %", "max": 100, "min": 0}
+        ],
+        "thresholds": [
+          {"value": 80, "colorMode": "critical", "op": "gt", "fill": true, "line": true}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Fleet Disk Usage",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "capacity_monitor_disk_percent",
+            "legendFormat": "{{hostname}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Disk %", "max": 100, "min": 0}
+        ],
+        "thresholds": [
+          {"value": 80, "colorMode": "critical", "op": "gt", "fill": true, "line": true}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Over Capacity Instances",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(capacity_monitor_over_capacity)",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "fields": "",
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "orange"},
+                {"value": 3, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Average CPU Across Fleet",
+        "type": "gauge",
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "avg(capacity_monitor_cpu_percent)",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 60, "color": "yellow"},
+                {"value": 80, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Average Memory Across Fleet",
+        "type": "gauge",
+        "gridPos": {"h": 6, "w": 6, "x": 6, "y": 16},
+        "targets": [
+          {
+            "expr": "avg(capacity_monitor_memory_percent)",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 60, "color": "yellow"},
+                {"value": 80, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Average Disk Across Fleet",
+        "type": "gauge",
+        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "avg(capacity_monitor_disk_percent)",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 60, "color": "yellow"},
+                {"value": 80, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Total Network Traffic (Rx)",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 22},
+        "targets": [
+          {
+            "expr": "rate(capacity_monitor_network_rx_bytes_total[5m])",
+            "legendFormat": "{{hostname}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "Bps", "label": "Bytes/sec"}
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Total Network Traffic (Tx)",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 22},
+        "targets": [
+          {
+            "expr": "rate(capacity_monitor_network_tx_bytes_total[5m])",
+            "legendFormat": "{{hostname}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "Bps", "label": "Bytes/sec"}
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Instance Status Heatmap",
+        "type": "heatmap",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 28},
+        "targets": [
+          {
+            "expr": "capacity_monitor_cpu_percent",
+            "legendFormat": "{{hostname}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "calculate": true,
+          "calculation": {},
+          "cellGap": 2,
+          "cellRadius": 0,
+          "cellValues": {},
+          "color": {
+            "exponent": 0.5,
+            "fill": "dark-orange",
+            "mode": "scheme",
+            "reverse": false,
+            "scale": "exponential",
+            "scheme": "Spectral",
+            "steps": 128
+          },
+          "exemplars": {
+            "color": "rgba(255,0,255,0.7)"
+          },
+          "filterValues": {
+            "le": 1e-9
+          },
+          "legend": {
+            "show": true
+          },
+          "rowsFrame": {
+            "layout": "auto"
+          },
+          "tooltip": {
+            "show": true,
+            "yHistogram": false
+          },
+          "yAxis": {
+            "axisPlacement": "left",
+            "reverse": false,
+            "unit": "short"
+          }
+        }
+      }
+    ]
+  }
+}
