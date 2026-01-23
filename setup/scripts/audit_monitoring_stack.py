@@ -520,6 +520,319 @@ class MonitoringStackAuditor:
             )
             self.services.append(service)
 
+    def detect_legacy_monitoring(self):
+        """Detect legacy monitoring systems."""
+        self.log("Scanning for legacy monitoring systems...")
+
+        # Nagios
+        nagios_paths = [
+            "/usr/local/nagios",
+            "/usr/share/nagios",
+            "/opt/nagios"
+        ]
+
+        for path in nagios_paths:
+            if Path(path).exists():
+                # Check for nagios binary
+                nagios_bin = Path(path) / "bin" / "nagios"
+                if nagios_bin.exists():
+                    version = None
+                    try:
+                        result = subprocess.run(
+                            [str(nagios_bin), "-V"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5
+                        )
+                        if result.returncode == 0:
+                            # Parse version from output
+                            for line in result.stdout.split('\n'):
+                                if "Nagios Core" in line:
+                                    parts = line.split()
+                                    if len(parts) >= 3:
+                                        version = parts[2]
+                                    break
+                    except:
+                        pass
+
+                    # Check if running
+                    running = False
+                    try:
+                        result = subprocess.run(
+                            ["pgrep", "-x", "nagios"],
+                            capture_output=True,
+                            timeout=5
+                        )
+                        running = result.returncode == 0
+                    except:
+                        pass
+
+                    service = ServiceInfo(
+                        name="Nagios Core",
+                        type="nagios",
+                        installed=True,
+                        running=running,
+                        version=version,
+                        install_method="package" if path.startswith("/usr") else "source",
+                        path=str(path),
+                        config_path=str(Path(path) / "etc" / "nagios.cfg"),
+                        details={"legacy": True}
+                    )
+                    self.services.append(service)
+                    break
+
+        # Check for Nagios web interface
+        if self.check_port(80) or self.check_port(443):
+            # Try to detect via Apache/Nginx serving Nagios
+            for conf_path in ["/etc/apache2/conf-available/nagios.conf",
+                             "/etc/httpd/conf.d/nagios.conf",
+                             "/etc/nginx/sites-available/nagios"]:
+                if Path(conf_path).exists():
+                    service = ServiceInfo(
+                        name="Nagios Web Interface",
+                        type="nagios",
+                        installed=True,
+                        running=True,
+                        url="http://localhost/nagios",
+                        details={"component": "web", "legacy": True}
+                    )
+                    self.services.append(service)
+                    break
+
+        # Check-MK
+        checkmk_paths = [
+            "/omd/sites",
+            "/opt/omd/sites"
+        ]
+
+        for base_path in checkmk_paths:
+            if Path(base_path).exists():
+                # List sites
+                try:
+                    sites = [d for d in Path(base_path).iterdir() if d.is_dir()]
+                    for site in sites:
+                        version_file = site / "version"
+                        version = None
+                        if version_file.exists():
+                            try:
+                                version = version_file.read_text().strip()
+                            except:
+                                pass
+
+                        # Check if site is running
+                        running = False
+                        try:
+                            result = subprocess.run(
+                                ["omd", "status", site.name],
+                                capture_output=True,
+                                timeout=5
+                            )
+                            running = "running" in result.stdout.decode().lower()
+                        except:
+                            pass
+
+                        service = ServiceInfo(
+                            name=f"Check-MK Site: {site.name}",
+                            type="checkmk",
+                            installed=True,
+                            running=running,
+                            version=version,
+                            install_method="package",
+                            path=str(site),
+                            url=f"http://localhost/{site.name}",
+                            details={"site": site.name, "legacy": True}
+                        )
+                        self.services.append(service)
+                except:
+                    pass
+
+        # Icinga
+        icinga_paths = [
+            ("/usr/sbin/icinga2", "/etc/icinga2", "icinga2"),
+            ("/usr/bin/icinga2", "/etc/icinga2", "icinga2"),
+            ("/usr/local/icinga2/sbin/icinga2", "/usr/local/icinga2/etc", "icinga2"),
+        ]
+
+        for binary_path, config_path, name in icinga_paths:
+            if Path(binary_path).exists():
+                version = None
+                try:
+                    result = subprocess.run(
+                        [binary_path, "--version"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if result.returncode == 0:
+                        # Parse version
+                        for line in result.stdout.split('\n'):
+                            if "version" in line.lower():
+                                parts = line.split()
+                                for part in parts:
+                                    if part[0].isdigit():
+                                        version = part
+                                        break
+                                break
+                except:
+                    pass
+
+                # Check if running
+                running = False
+                try:
+                    if self.system == "linux":
+                        result = subprocess.run(
+                            ["systemctl", "is-active", "icinga2"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5
+                        )
+                        running = "active" in result.stdout
+                    else:
+                        result = subprocess.run(
+                            ["pgrep", "-x", "icinga2"],
+                            capture_output=True,
+                            timeout=5
+                        )
+                        running = result.returncode == 0
+                except:
+                    pass
+
+                service = ServiceInfo(
+                    name="Icinga2",
+                    type="icinga",
+                    installed=True,
+                    running=running,
+                    version=version,
+                    install_method="package",
+                    path=binary_path,
+                    config_path=config_path,
+                    details={"legacy": True}
+                )
+                self.services.append(service)
+                break
+
+        # Icinga Web
+        icinga_web_paths = [
+            "/usr/share/icingaweb2",
+            "/usr/local/share/icingaweb2"
+        ]
+
+        for web_path in icinga_web_paths:
+            if Path(web_path).exists():
+                service = ServiceInfo(
+                    name="Icinga Web 2",
+                    type="icinga",
+                    installed=True,
+                    path=web_path,
+                    url="http://localhost/icingaweb2",
+                    details={"component": "web", "legacy": True}
+                )
+                self.services.append(service)
+                break
+
+        # Sensu
+        sensu_paths = [
+            ("/opt/sensu/bin/sensu-backend", "backend"),
+            ("/opt/sensu/bin/sensu-agent", "agent"),
+            ("/usr/sbin/sensu-backend", "backend"),
+            ("/usr/sbin/sensu-agent", "agent"),
+        ]
+
+        for binary_path, component in sensu_paths:
+            if Path(binary_path).exists():
+                version = None
+                try:
+                    result = subprocess.run(
+                        [binary_path, "version"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if result.returncode == 0:
+                        # Parse version
+                        lines = result.stdout.strip().split('\n')
+                        if lines:
+                            version = lines[0].split()[-1] if lines[0].split() else None
+                except:
+                    pass
+
+                # Check if running
+                running = False
+                process_name = f"sensu-{component}"
+                try:
+                    if self.system == "linux":
+                        result = subprocess.run(
+                            ["systemctl", "is-active", process_name],
+                            capture_output=True,
+                            text=True,
+                            timeout=5
+                        )
+                        running = "active" in result.stdout
+                    else:
+                        result = subprocess.run(
+                            ["pgrep", "-f", process_name],
+                            capture_output=True,
+                            timeout=5
+                        )
+                        running = result.returncode == 0
+                except:
+                    pass
+
+                # Backend typically runs on port 8080
+                port = 8080 if component == "backend" else None
+                url = f"http://localhost:{port}" if port and running else None
+
+                service = ServiceInfo(
+                    name=f"Sensu {component.title()}",
+                    type="sensu",
+                    installed=True,
+                    running=running,
+                    version=version,
+                    install_method="package",
+                    path=binary_path,
+                    port=port,
+                    url=url,
+                    details={"component": component, "legacy": True}
+                )
+                self.services.append(service)
+
+        # Check for Sensu via Docker
+        if shutil.which("docker"):
+            for image in ["sensu/sensu", "sensu/sensu-go-backend", "sensu/sensu-go-agent"]:
+                try:
+                    result = subprocess.run(
+                        ["docker", "ps", "-a", "--filter", f"ancestor={image}",
+                         "--format", "{{.ID}}\t{{.Names}}\t{{.Status}}"],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+
+                    if result.returncode == 0 and result.stdout.strip():
+                        for line in result.stdout.strip().split('\n'):
+                            parts = line.split('\t')
+                            if len(parts) >= 3:
+                                container_id = parts[0]
+                                name = parts[1]
+                                status = parts[2]
+                                running = "up" in status.lower()
+
+                                component = "backend" if "backend" in image else "agent"
+
+                                service = ServiceInfo(
+                                    name=f"Sensu {component.title()} (Docker: {name})",
+                                    type="sensu",
+                                    installed=True,
+                                    running=running,
+                                    install_method="docker",
+                                    path=f"docker:{name}",
+                                    container_id=container_id,
+                                    details={"component": component, "legacy": True}
+                                )
+                                self.services.append(service)
+                except:
+                    pass
+
     def detect_other_services(self):
         """Detect other monitoring-related services."""
         self.log("Scanning for other services...")
@@ -593,6 +906,7 @@ class MonitoringStackAuditor:
         self.detect_prometheus()
         self.detect_graphite()
         self.detect_mysql()
+        self.detect_legacy_monitoring()
         self.detect_other_services()
 
         return self.services

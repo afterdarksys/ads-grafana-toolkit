@@ -174,6 +174,7 @@ You can run individual scripts for specific tasks:
 - MySQL/MariaDB (with InnoDB status)
 - Node Exporter, Alertmanager, Pushgateway
 - Loki, InfluxDB, Telegraf, Collectd, StatsD
+- **Legacy Systems:** Nagios, Check-MK, Icinga/Icinga2, Sensu
 
 **Shows for each service:**
 - Installation status
