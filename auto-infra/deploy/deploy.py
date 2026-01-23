@@ -11,7 +11,11 @@ import time
 from pathlib import Path
 
 # Configuration
-SSH_KEY = Path.home() / ".ssh" / "oci_diseasezone"
+SSH_KEYS = {
+    "oci_diseasezone": Path.home() / ".ssh" / "oci_diseasezone",
+    "darkapi_key": Path.home() / ".ssh" / "darkapi_key",
+    "id_ed25519": Path.home() / ".ssh" / "id_ed25519",
+}
 N8N_WEBHOOK = "https://n8n.afterdarksys.com/webhook/capacity-alert"
 BINARY_AMD64 = Path("../daemons/capacity-monitor/capacity-monitor-linux-amd64")
 BINARY_ARM64 = Path("../daemons/capacity-monitor/capacity-monitor-linux-arm64")
@@ -81,13 +85,14 @@ def get_instance_ip(instance_id):
     return None
 
 def detect_ssh_user(ip):
-    """Try to find the right SSH user"""
+    """Try to find the right SSH user and key"""
     for user in ['ubuntu', 'opc', 'root']:
-        cmd = f'ssh -i {SSH_KEY} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=yes {user}@{ip} "exit" 2>/dev/null'
-        _, code = run_command(cmd, check=False)
-        if code == 0:
-            return user
-    return None
+        for key_name, key_path in SSH_KEYS.items():
+            cmd = f'ssh -i {key_path} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=yes {user}@{ip} "exit" 2>/dev/null'
+            _, code = run_command(cmd, check=False)
+            if code == 0:
+                return (user, key_path, key_name)
+    return (None, None, None)
 
 def deploy_to_instance(instance):
     """Deploy capacity-monitor to a single instance"""
@@ -107,13 +112,13 @@ def deploy_to_instance(instance):
         return False
     print(f"  ✓ IP: {ip}")
 
-    # Detect SSH user
-    print("  → Detecting SSH user...")
-    user = detect_ssh_user(ip)
+    # Detect SSH user and key
+    print("  → Detecting SSH user and key...")
+    user, key_path, key_name = detect_ssh_user(ip)
     if not user:
-        print(f"  ❌ Could not determine SSH user")
+        print(f"  ❌ Could not determine SSH user/key")
         return False
-    print(f"  ✓ SSH User: {user}")
+    print(f"  ✓ SSH User: {user}, Key: {key_name}")
 
     # Determine architecture and binary
     if 'A1.Flex' in shape:
@@ -126,7 +131,7 @@ def deploy_to_instance(instance):
 
     # Copy binary
     print(f"  → Copying {binary.name}...")
-    cmd = f'scp -i {SSH_KEY} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {binary} {user}@{ip}:/tmp/capacity-monitor 2>/dev/null'
+    cmd = f'scp -i {key_path} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {binary} {user}@{ip}:/tmp/capacity-monitor 2>/dev/null'
     _, code = run_command(cmd, check=False)
     if code != 0:
         print(f"  ❌ Failed to copy binary")
@@ -157,7 +162,7 @@ sleep 1
 sudo systemctl status capacity-monitor --no-pager || true
 """
 
-    cmd = f'ssh -i {SSH_KEY} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {user}@{ip} bash -s 2>&1 << "ENDSSH"\n{install_script}\nENDSSH'
+    cmd = f'ssh -i {key_path} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {user}@{ip} bash -s 2>&1 << "ENDSSH"\n{install_script}\nENDSSH'
 
     output, code = run_command(cmd, check=False)
 
