@@ -231,6 +231,18 @@ This is perfect for auditing a system before starting installation!
 
 # Install from source
 ./scripts/install_grafana.py source --path /opt/grafana --branch main
+
+# Expert: Direct RPM installation (RHEL/CentOS/Fedora)
+./scripts/install_grafana.py rpm --version 10.3.3
+
+# Expert: Custom RPM URL
+./scripts/install_grafana.py rpm --rpm-url https://example.com/grafana.rpm
+
+# Expert: Direct DEB installation (Debian/Ubuntu)
+./scripts/install_grafana.py deb --version 10.3.3
+
+# Expert: Custom DEB URL
+./scripts/install_grafana.py deb --deb-url https://example.com/grafana.deb
 ```
 
 ## Platform-Specific Instructions

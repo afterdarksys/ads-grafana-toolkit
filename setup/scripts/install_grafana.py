@@ -120,6 +120,124 @@ class GrafanaInstaller:
             self.log(f"Package installation not supported for {self.system}", "ERROR")
             return False
 
+    def install_rpm(self, version: Optional[str] = None, rpm_url: Optional[str] = None) -> bool:
+        """Install Grafana directly from RPM file (expert mode)."""
+        self.log("Installing Grafana via RPM (expert mode)...")
+
+        if self.system != "linux":
+            self.log("RPM installation only supported on Linux", "ERROR")
+            return False
+
+        if not shutil.which("rpm"):
+            self.log("rpm command not found", "ERROR")
+            return False
+
+        # Determine version to install
+        version = version or self.GRAFANA_VERSION
+
+        # Build RPM URL if not provided
+        if not rpm_url:
+            # Determine architecture
+            arch_map = {
+                "x86_64": "x86_64",
+                "amd64": "x86_64",
+                "aarch64": "aarch64",
+                "arm64": "aarch64",
+            }
+            arch = arch_map.get(self.arch, self.arch)
+
+            rpm_url = f"https://dl.grafana.com/oss/release/grafana-{version}-1.{arch}.rpm"
+
+        self.log(f"Downloading RPM from: {rpm_url}")
+
+        # Download RPM
+        with tempfile.TemporaryDirectory() as tmpdir:
+            rpm_path = Path(tmpdir) / "grafana.rpm"
+
+            try:
+                import urllib.request
+                urllib.request.urlretrieve(rpm_url, rpm_path)
+            except Exception as e:
+                self.log(f"Failed to download RPM: {e}", "ERROR")
+                return False
+
+            # Install RPM
+            self.log("Installing RPM package...")
+            pkg_mgr = "dnf" if shutil.which("dnf") else "yum"
+
+            # Try using package manager first (handles dependencies)
+            if self._run_command(["sudo", pkg_mgr, "install", "-y", str(rpm_path)]):
+                self.log("RPM installed successfully via package manager")
+                return self._post_install_package()
+
+            # Fallback to direct rpm install (may have dependency issues)
+            self.log("Package manager install failed, trying direct rpm install...", "WARN")
+            if self._run_command(["sudo", "rpm", "-ivh", str(rpm_path)]):
+                self.log("RPM installed via direct rpm command", "WARN")
+                self.log("Note: Dependencies may not be resolved", "WARN")
+                return self._post_install_package()
+
+            self.log("RPM installation failed", "ERROR")
+            return False
+
+    def install_deb(self, version: Optional[str] = None, deb_url: Optional[str] = None) -> bool:
+        """Install Grafana directly from DEB file (expert mode)."""
+        self.log("Installing Grafana via DEB (expert mode)...")
+
+        if self.system != "linux":
+            self.log("DEB installation only supported on Linux", "ERROR")
+            return False
+
+        if not shutil.which("dpkg"):
+            self.log("dpkg command not found", "ERROR")
+            return False
+
+        # Determine version to install
+        version = version or self.GRAFANA_VERSION
+
+        # Build DEB URL if not provided
+        if not deb_url:
+            # Determine architecture
+            arch_map = {
+                "x86_64": "amd64",
+                "amd64": "amd64",
+                "aarch64": "arm64",
+                "arm64": "arm64",
+                "armv7": "armhf",
+            }
+            arch = arch_map.get(self.arch, self.arch)
+
+            deb_url = f"https://dl.grafana.com/oss/release/grafana_{version}_amd64.deb"
+
+        self.log(f"Downloading DEB from: {deb_url}")
+
+        # Download DEB
+        with tempfile.TemporaryDirectory() as tmpdir:
+            deb_path = Path(tmpdir) / "grafana.deb"
+
+            try:
+                import urllib.request
+                urllib.request.urlretrieve(deb_url, deb_path)
+            except Exception as e:
+                self.log(f"Failed to download DEB: {e}", "ERROR")
+                return False
+
+            # Install dependencies first
+            self.log("Installing dependencies...")
+            self._run_command(["sudo", "apt-get", "update"], check=False)
+            self._run_command(["sudo", "apt-get", "install", "-f", "-y"], check=False)
+
+            # Install DEB
+            self.log("Installing DEB package...")
+            if self._run_command(["sudo", "dpkg", "-i", str(deb_path)]):
+                # Fix any dependency issues
+                self._run_command(["sudo", "apt-get", "install", "-f", "-y"], check=False)
+                self.log("DEB installed successfully")
+                return self._post_install_package()
+
+            self.log("DEB installation failed", "ERROR")
+            return False
+
     def _install_package_debian(self, version: Optional[str] = None) -> bool:
         """Install Grafana on Debian/Ubuntu."""
         self.log("Installing Grafana for Debian/Ubuntu...")
@@ -420,7 +538,7 @@ def main():
     )
     parser.add_argument(
         "method",
-        choices=["package", "docker", "binary", "source"],
+        choices=["package", "docker", "binary", "source", "rpm", "deb"],
         help="Installation method"
     )
     parser.add_argument(
@@ -453,6 +571,14 @@ def main():
         action="store_true",
         help="Automatic yes to prompts"
     )
+    parser.add_argument(
+        "--rpm-url",
+        help="Custom RPM URL (for rpm method)"
+    )
+    parser.add_argument(
+        "--deb-url",
+        help="Custom DEB URL (for deb method)"
+    )
 
     args = parser.parse_args()
 
@@ -466,6 +592,10 @@ def main():
         success = installer.install_binary(version=args.version, install_path=args.path)
     elif args.method == "source":
         success = installer.install_source(install_path=args.path, branch=args.branch)
+    elif args.method == "rpm":
+        success = installer.install_rpm(version=args.version, rpm_url=args.rpm_url)
+    elif args.method == "deb":
+        success = installer.install_deb(version=args.version, deb_url=args.deb_url)
     else:
         print(f"Unknown method: {args.method}", file=sys.stderr)
         sys.exit(1)
