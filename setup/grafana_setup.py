@@ -166,6 +166,23 @@ class GrafanaSetup:
             self.log(f"Error running script: {e}", "ERROR")
             return False, None
 
+    def step_audit_system(self) -> bool:
+        """Step 0: Audit entire monitoring stack."""
+        self.header("STEP 0: System Audit (Optional)")
+
+        if not self.confirm("Run full monitoring stack audit? (Grafana, Prometheus, Graphite, MySQL, etc.)", default=False):
+            self.log("Skipping system audit", "INFO")
+            return True
+
+        self.log("Auditing monitoring stack...", "STEP")
+        success, _ = self.run_script("audit_monitoring_stack.py", ["-v"])
+
+        if not success:
+            self.log("Audit failed, continuing anyway...", "WARN")
+
+        self.pause()
+        return True
+
     def step_detect_grafana(self) -> bool:
         """Step 1: Detect existing Grafana installations."""
         self.header("STEP 1: Detecting Existing Grafana Installations")
@@ -414,6 +431,7 @@ class GrafanaSetup:
         print()
 
         steps = [
+            ("System Audit", self.step_audit_system),
             ("Detect Grafana", self.step_detect_grafana),
             ("Setup Docker", self.step_setup_docker),
             ("Install Grafana", self.step_install_grafana),

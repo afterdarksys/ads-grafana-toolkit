@@ -24,10 +24,19 @@ Quick reference for all commands and options.
 ./grafana_setup.py --automated --verbose
 ```
 
-## Detection Script
+## Audit & Detection Scripts
 
 ```bash
-# Detect Grafana installations
+# Audit entire monitoring stack
+./scripts/audit_monitoring_stack.py
+
+# Save audit to file
+./scripts/audit_monitoring_stack.py -o audit.txt
+
+# JSON format
+./scripts/audit_monitoring_stack.py -f json
+
+# Detect Grafana installations only
 ./scripts/detect_grafana.py
 
 # JSON output

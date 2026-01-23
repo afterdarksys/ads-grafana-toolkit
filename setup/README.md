@@ -151,7 +151,43 @@ docker-compose up -d
 
 You can run individual scripts for specific tasks:
 
-### 1. Detect Grafana Installations
+### 1. Audit Entire Monitoring Stack
+
+```bash
+# Comprehensive audit of all monitoring services
+./scripts/audit_monitoring_stack.py
+
+# JSON output
+./scripts/audit_monitoring_stack.py -f json
+
+# Save to file
+./scripts/audit_monitoring_stack.py -o audit-report.txt
+
+# Verbose mode
+./scripts/audit_monitoring_stack.py -v
+```
+
+**Detects:**
+- Grafana (Docker, package, binary, source)
+- Prometheus (all deployment types)
+- Graphite (web, carbon-cache, carbon-relay)
+- MySQL/MariaDB (with InnoDB status)
+- Node Exporter, Alertmanager, Pushgateway
+- Loki, InfluxDB, Telegraf, Collectd, StatsD
+
+**Shows for each service:**
+- Installation status
+- Running status
+- Version information
+- Installation method (Docker/package/binary)
+- Paths (binary, config, data)
+- Ports and URLs
+- Process IDs and users
+- Container IDs (for Docker)
+
+This is perfect for auditing a system before starting installation!
+
+### 2. Detect Grafana Installations
 
 ```bash
 # Text output
@@ -164,7 +200,7 @@ You can run individual scripts for specific tasks:
 ./scripts/detect_grafana.py -v
 ```
 
-### 2. Setup Docker
+### 3. Setup Docker
 
 ```bash
 # Check if Docker is installed
@@ -177,7 +213,7 @@ You can run individual scripts for specific tasks:
 ./scripts/setup_docker.py -y
 ```
 
-### 3. Install Grafana
+### 4. Install Grafana
 
 ```bash
 # Install via Docker
