@@ -1,0 +1,113 @@
+# Grafana Datasource Provisioning Template
+# Place this file in /etc/grafana/provisioning/datasources/
+
+apiVersion: 1
+
+datasources:
+  # Prometheus datasource
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://localhost:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 30s
+
+  # InfluxDB datasource
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://localhost:8086
+    database: grafana
+    user: grafana
+    secureJsonData:
+      password: grafana
+    jsonData:
+      httpMode: GET
+      timeInterval: 30s
+    editable: true
+
+  # MySQL datasource
+  - name: MySQL
+    type: mysql
+    access: proxy
+    url: localhost:3306
+    database: grafana
+    user: grafana
+    secureJsonData:
+      password: grafana
+    jsonData:
+      maxOpenConns: 0
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+    editable: true
+
+  # PostgreSQL datasource
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: localhost:5432
+    database: grafana
+    user: grafana
+    secureJsonData:
+      password: grafana
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 0
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+    editable: true
+
+  # Loki datasource (for logs)
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://localhost:3100
+    jsonData:
+      maxLines: 1000
+    editable: true
+
+  # Elasticsearch datasource
+  - name: Elasticsearch
+    type: elasticsearch
+    access: proxy
+    url: http://localhost:9200
+    database: "[logs-]YYYY.MM.DD"
+    jsonData:
+      interval: Daily
+      timeField: "@timestamp"
+      esVersion: "7.10.0"
+    editable: true
+
+  # Graphite datasource
+  - name: Graphite
+    type: graphite
+    access: proxy
+    url: http://localhost:8080
+    jsonData:
+      graphiteVersion: "1.1"
+    editable: true
+
+  # CloudWatch datasource (requires AWS credentials)
+  # - name: CloudWatch
+  #   type: cloudwatch
+  #   jsonData:
+  #     authType: keys
+  #     defaultRegion: us-east-1
+  #   secureJsonData:
+  #     accessKey: YOUR_ACCESS_KEY
+  #     secretKey: YOUR_SECRET_KEY
+  #   editable: true
+
+  # Tempo datasource (for traces)
+  # - name: Tempo
+  #   type: tempo
+  #   access: proxy
+  #   url: http://localhost:3200
+  #   jsonData:
+  #     httpMethod: GET
+  #     tracesToLogs:
+  #       datasourceUid: loki
+  #   editable: true

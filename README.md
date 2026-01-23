@@ -18,7 +18,7 @@ pip install ads-grafana-toolkit
 
 For development:
 ```bash
-git clone https://github.com/afterdarktech/ads-grafana-toolkit.git
+git clone https://github.com/afterdarksys/ads-grafana-toolkit.git
 cd ads-grafana-toolkit
 pip install -e ".[dev]"
 ```
@@ -27,6 +27,24 @@ For NLP features (requires OpenAI API key):
 ```bash
 pip install ads-grafana-toolkit[nlp]
 ```
+
+## Grafana Setup
+
+New to Grafana? Need to install or configure it? Check out our **[Grafana Setup Toolkit](setup/README.md)** for automated installation with multiple deployment options:
+
+```bash
+cd setup
+./grafana_setup.py --automated
+```
+
+Supports:
+- **Four modes**: `--automated`, `--step-by-step`, `--play`, `--run`
+- **Multiple methods**: Docker, package manager, binary, or source installation
+- **Platform support**: Linux (Debian/Ubuntu/RHEL/Arch), macOS, Windows
+- **Auto-detection**: Finds existing Grafana installations
+- **Beginner-friendly**: Clear prompts and guidance
+
+See [setup/README.md](setup/README.md) for complete documentation.
 
 ## Quick Start
 

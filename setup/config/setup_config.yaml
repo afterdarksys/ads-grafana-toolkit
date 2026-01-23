@@ -1,0 +1,186 @@
+# Setup Configuration for Grafana Toolkit
+# This file controls the behavior of the setup scripts
+
+# Installation preferences
+installation:
+  # Preferred method: package, docker, binary, source
+  preferred_method: docker
+
+  # Fallback order if preferred method fails
+  fallback_order:
+    - docker
+    - package
+    - binary
+
+  # Grafana version (leave empty for latest)
+  version: ""
+
+  # Installation path for binary/source installations
+  install_path: "/opt/grafana"
+
+# Docker configuration
+docker:
+  # Container name
+  container_name: "grafana"
+
+  # Port mapping
+  port: 3000
+
+  # Data volume name
+  volume_name: "grafana-data"
+
+  # Restart policy
+  restart_policy: "unless-stopped"
+
+  # Additional environment variables
+  environment:
+    GF_SECURITY_ADMIN_USER: "admin"
+    GF_SECURITY_ADMIN_PASSWORD: "admin"
+    GF_USERS_ALLOW_SIGN_UP: "false"
+
+# Grafana configuration
+grafana:
+  # Server settings
+  server:
+    protocol: "http"
+    http_addr: "0.0.0.0"
+    http_port: 3000
+    domain: "localhost"
+
+  # Security settings
+  security:
+    admin_user: "admin"
+    admin_password: "admin"
+    secret_key: ""  # Auto-generated if empty
+
+  # Database settings (sqlite3, mysql, postgres)
+  database:
+    type: "sqlite3"
+    host: "127.0.0.1:3306"
+    name: "grafana"
+    user: "root"
+    password: ""
+
+  # User settings
+  users:
+    allow_sign_up: false
+    allow_org_create: false
+    auto_assign_org: true
+    auto_assign_org_role: "Viewer"
+    default_theme: "dark"
+
+  # Anonymous access
+  auth_anonymous:
+    enabled: false
+    org_role: "Viewer"
+
+  # Alerting
+  alerting:
+    enabled: true
+    execute_alerts: true
+
+  # Logging
+  logging:
+    mode: "console file"
+    level: "info"
+
+# Datasource provisioning
+datasources:
+  # Enable automatic datasource provisioning
+  enabled: true
+
+  # Datasources to configure
+  provision:
+    - name: "Prometheus"
+      type: "prometheus"
+      url: "http://localhost:9090"
+      enabled: true
+
+    - name: "Loki"
+      type: "loki"
+      url: "http://localhost:3100"
+      enabled: false
+
+    - name: "InfluxDB"
+      type: "influxdb"
+      url: "http://localhost:8086"
+      enabled: false
+
+# Interactive mode settings
+interactive:
+  # Show detailed explanations
+  verbose: true
+
+  # Pause between steps in step-by-step mode
+  pause_duration: 2
+
+  # Require confirmation for destructive actions
+  confirm_destructive: true
+
+  # Show progress indicators
+  show_progress: true
+
+# Automated mode settings
+automated:
+  # Skip all confirmations
+  auto_yes: true
+
+  # Stop on first error
+  fail_fast: true
+
+  # Create log file
+  log_file: "grafana_setup.log"
+
+  # Retry failed steps
+  retry_on_failure: false
+  retry_count: 3
+
+# Health checks
+health_checks:
+  # Check if Grafana is accessible after installation
+  enabled: true
+
+  # Timeout in seconds
+  timeout: 60
+
+  # Retry interval in seconds
+  retry_interval: 5
+
+  # Expected HTTP status code
+  expected_status: 200
+
+# Post-installation tasks
+post_install:
+  # Start Grafana service
+  start_service: true
+
+  # Enable service on boot
+  enable_on_boot: true
+
+  # Open browser to Grafana URL
+  open_browser: false
+
+  # Show getting started guide
+  show_guide: true
+
+  # Install recommended plugins
+  install_plugins: []
+    # - "grafana-clock-panel"
+    # - "grafana-piechart-panel"
+
+# Platform-specific settings
+platform:
+  linux:
+    # Use systemd for service management
+    use_systemd: true
+
+    # Add user to docker group
+    add_docker_group: true
+
+  darwin:
+    # Use Homebrew for package installation
+    use_homebrew: true
+
+  windows:
+    # Use chocolatey for package installation
+    use_chocolatey: false
