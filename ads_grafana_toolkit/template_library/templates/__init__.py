@@ -17,6 +17,8 @@ from ads_grafana_toolkit.template_library.templates import (
     cloud_aws,
     cloud_gcp,
     cloud_azure,
+    cloud_cost,
+    cloud_connectivity,
 )
 
 __all__ = [
@@ -36,4 +38,6 @@ __all__ = [
     "cloud_aws",
     "cloud_gcp",
     "cloud_azure",
+    "cloud_cost",
+    "cloud_connectivity",
 ]

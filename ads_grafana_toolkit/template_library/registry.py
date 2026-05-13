@@ -77,6 +77,8 @@ def _register_builtin_templates():
         cloud_aws,
         cloud_gcp,
         cloud_azure,
+        cloud_cost,
+        cloud_connectivity,
     )
 
 
