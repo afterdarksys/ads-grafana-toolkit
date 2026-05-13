@@ -6,6 +6,17 @@ from ads_grafana_toolkit.template_library.templates import (
     docker,
     kubernetes,
     database,
+    # ISP / Network
+    isp_bgp,
+    isp_traffic,
+    network_cisco,
+    network_juniper,
+    network_paloalto,
+    network_fortinet,
+    # Multi-Cloud
+    cloud_aws,
+    cloud_gcp,
+    cloud_azure,
 )
 
 __all__ = [
@@ -14,4 +25,15 @@ __all__ = [
     "docker",
     "kubernetes",
     "database",
+    # ISP / Network
+    "isp_bgp",
+    "isp_traffic",
+    "network_cisco",
+    "network_juniper",
+    "network_paloalto",
+    "network_fortinet",
+    # Multi-Cloud
+    "cloud_aws",
+    "cloud_gcp",
+    "cloud_azure",
 ]

@@ -64,3 +64,28 @@ class Datasource:
     def tempo(cls, name: str = "Tempo") -> Datasource:
         """Create a Tempo datasource reference."""
         return cls(name=name, type="tempo")
+
+    @classmethod
+    def azure_monitor(cls, name: str = "Azure Monitor") -> Datasource:
+        """Create an Azure Monitor datasource reference."""
+        return cls(name=name, type="grafana-azure-monitor-datasource")
+
+    @classmethod
+    def cloud_monitoring(cls, name: str = "Google Cloud Monitoring") -> Datasource:
+        """Create a GCP Cloud Monitoring (Stackdriver) datasource reference."""
+        return cls(name=name, type="stackdriver")
+
+    @classmethod
+    def influxdb2(cls, name: str = "InfluxDB v2") -> Datasource:
+        """Create an InfluxDB v2 (Flux) datasource reference."""
+        return cls(name=name, type="influxdb")
+
+    @classmethod
+    def snmp(cls, name: str = "Prometheus-SNMP") -> Datasource:
+        """Create a Prometheus datasource reference for SNMP exporter metrics."""
+        return cls(name=name, type="prometheus")
+
+    @classmethod
+    def telegraf(cls, name: str = "InfluxDB-Telegraf") -> Datasource:
+        """Create an InfluxDB datasource reference for Telegraf output."""
+        return cls(name=name, type="influxdb")

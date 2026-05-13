@@ -3,24 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grafana Dashboard Toolkit</title>
+    <title>ISP Grafana Toolkit — Multi-Cloud & Network</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
         [x-cloak] { display: none !important; }
+        .vendor-card { transition: border-color 0.15s, background 0.15s; }
+        .vendor-card.selected { border-color: #f97316; background: rgba(249,115,22,0.08); }
+        .provider-card { transition: border-color 0.15s, background 0.15s; }
+        .provider-card.selected { border-color: #3b82f6; background: rgba(59,130,246,0.08); }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen" x-data="app()">
+
     <!-- Header -->
     <header class="bg-gray-800 border-b border-gray-700">
         <div class="container mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
-                <h1 class="text-2xl font-bold text-orange-500">Grafana Dashboard Toolkit</h1>
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-orange-500 rounded flex items-center justify-center font-bold text-sm">ISP</div>
+                    <div>
+                        <h1 class="text-xl font-bold text-white leading-tight">Grafana Toolkit</h1>
+                        <p class="text-xs text-gray-400">Multi-Cloud · ISP · Network Hardware</p>
+                    </div>
+                </div>
                 <div class="flex items-center space-x-4">
-                    <span class="text-sm text-gray-400" x-text="'Dashboards: ' + stats.dashboards"></span>
-                    <button @click="showSettings = true" class="p-2 hover:bg-gray-700 rounded">
+                    <div class="flex items-center space-x-3 text-sm text-gray-400">
+                        <span x-text="'Dashboards: ' + stats.dashboards"></span>
+                        <span class="text-gray-600">|</span>
+                        <span class="text-green-400 text-xs" x-show="stats.dashboards > 0">Active</span>
+                    </div>
+                    <button @click="showSettings = true" class="p-2 hover:bg-gray-700 rounded" title="Settings">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -31,54 +46,66 @@
         </div>
     </header>
 
-    <div class="container mx-auto px-4 py-8">
-        <!-- Tabs -->
-        <div class="flex space-x-1 mb-8 bg-gray-800 p-1 rounded-lg w-fit">
+    <div class="container mx-auto px-4 py-6">
+
+        <!-- Primary Navigation Tabs -->
+        <div class="flex space-x-1 mb-6 bg-gray-800 p-1 rounded-lg w-fit">
             <button @click="activeTab = 'create'"
                     :class="activeTab === 'create' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'"
-                    class="px-4 py-2 rounded-md transition-colors">
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors">
                 Create Dashboard
+            </button>
+            <button @click="activeTab = 'isp'"
+                    :class="activeTab === 'isp' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'"
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                ISP / Network
+            </button>
+            <button @click="activeTab = 'cloud'"
+                    :class="activeTab === 'cloud' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'"
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                Multi-Cloud
             </button>
             <button @click="activeTab = 'templates'"
                     :class="activeTab === 'templates' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'"
-                    class="px-4 py-2 rounded-md transition-colors">
-                Templates
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                All Templates
             </button>
             <button @click="activeTab = 'dashboards'"
                     :class="activeTab === 'dashboards' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'"
-                    class="px-4 py-2 rounded-md transition-colors">
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-colors">
                 My Dashboards
             </button>
         </div>
 
-        <!-- Create Dashboard Tab -->
+        <!-- ═══════════════════════════════════════════════════════════════
+             TAB: Create Dashboard
+        ════════════════════════════════════════════════════════════════ -->
         <div x-show="activeTab === 'create'" x-cloak>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <!-- Input Section -->
                 <div class="space-y-6">
                     <!-- Method Selection -->
                     <div class="bg-gray-800 rounded-lg p-6">
                         <h3 class="text-lg font-semibold mb-4">Creation Method</h3>
-                        <div class="grid grid-cols-3 gap-4">
+                        <div class="grid grid-cols-3 gap-3">
                             <button @click="createMethod = 'nlp'"
                                     :class="createMethod === 'nlp' ? 'border-orange-500 bg-orange-500/10' : 'border-gray-600 hover:border-gray-500'"
                                     class="border-2 rounded-lg p-4 text-center transition-colors">
-                                <div class="text-2xl mb-2">💬</div>
-                                <div class="font-medium">Natural Language</div>
+                                <div class="text-2xl mb-1">💬</div>
+                                <div class="font-medium text-sm">Natural Language</div>
                                 <div class="text-xs text-gray-400">Describe what you want</div>
                             </button>
                             <button @click="createMethod = 'template'"
                                     :class="createMethod === 'template' ? 'border-orange-500 bg-orange-500/10' : 'border-gray-600 hover:border-gray-500'"
                                     class="border-2 rounded-lg p-4 text-center transition-colors">
-                                <div class="text-2xl mb-2">📋</div>
-                                <div class="font-medium">Template</div>
+                                <div class="text-2xl mb-1">📋</div>
+                                <div class="font-medium text-sm">Template</div>
                                 <div class="text-xs text-gray-400">Start from a template</div>
                             </button>
                             <button @click="createMethod = 'manual'"
                                     :class="createMethod === 'manual' ? 'border-orange-500 bg-orange-500/10' : 'border-gray-600 hover:border-gray-500'"
                                     class="border-2 rounded-lg p-4 text-center transition-colors">
-                                <div class="text-2xl mb-2">🛠️</div>
-                                <div class="font-medium">Manual</div>
+                                <div class="text-2xl mb-1">🛠️</div>
+                                <div class="font-medium text-sm">Manual</div>
                                 <div class="text-xs text-gray-400">Build step by step</div>
                             </button>
                         </div>
@@ -87,21 +114,30 @@
                     <!-- NLP Input -->
                     <div x-show="createMethod === 'nlp'" class="bg-gray-800 rounded-lg p-6">
                         <h3 class="text-lg font-semibold mb-4">Describe Your Dashboard</h3>
-                        <textarea x-model="nlpPrompt"
-                                  rows="4"
-                                  placeholder="Create a dashboard showing CPU, memory, and disk usage with alerts for high utilization..."
-                                  class="w-full bg-gray-700 border border-gray-600 rounded-lg p-4 text-gray-100 placeholder-gray-400 focus:border-orange-500 focus:outline-none"></textarea>
-                        <div class="mt-4 flex items-center space-x-4">
-                            <select x-model="datasource" class="bg-gray-700 border border-gray-600 rounded-lg px-4 py-2">
-                                <option value="Prometheus">Prometheus</option>
-                                <option value="Graphite">Graphite</option>
-                                <option value="InfluxDB">InfluxDB</option>
-                                <option value="Loki">Loki</option>
+                        <textarea x-model="nlpPrompt" rows="4"
+                                  placeholder="Create a dashboard showing BGP session states and prefix counts for our Tier-1 ISP peering routers..."
+                                  class="w-full bg-gray-700 border border-gray-600 rounded-lg p-4 text-gray-100 placeholder-gray-400 focus:border-orange-500 focus:outline-none text-sm"></textarea>
+                        <div class="mt-4 flex items-center space-x-3">
+                            <select x-model="datasource" class="bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm flex-1">
+                                <optgroup label="ISP / Network">
+                                    <option value="Prometheus">Prometheus</option>
+                                    <option value="Prometheus-SNMP">Prometheus (SNMP Exporter)</option>
+                                    <option value="InfluxDB-Telegraf">InfluxDB (Telegraf)</option>
+                                </optgroup>
+                                <optgroup label="Cloud">
+                                    <option value="AWS CloudWatch">AWS CloudWatch</option>
+                                    <option value="Google Cloud Monitoring">Google Cloud Monitoring</option>
+                                    <option value="Azure Monitor">Azure Monitor</option>
+                                </optgroup>
+                                <optgroup label="Other">
+                                    <option value="Graphite">Graphite</option>
+                                    <option value="InfluxDB">InfluxDB</option>
+                                    <option value="Loki">Loki</option>
+                                </optgroup>
                             </select>
-                            <button @click="generateFromNLP()"
-                                    :disabled="loading"
-                                    class="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-6 py-2 rounded-lg font-medium transition-colors">
-                                <span x-show="!loading">Generate Dashboard</span>
+                            <button @click="generateFromNLP()" :disabled="loading"
+                                    class="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-5 py-2 rounded-lg font-medium transition-colors text-sm whitespace-nowrap">
+                                <span x-show="!loading">Generate</span>
                                 <span x-show="loading">Generating...</span>
                             </button>
                         </div>
@@ -111,26 +147,59 @@
                     <div x-show="createMethod === 'template'" class="bg-gray-800 rounded-lg p-6">
                         <h3 class="text-lg font-semibold mb-4">Select Template</h3>
                         <select x-model="selectedTemplate" @change="loadTemplateInfo()"
-                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 mb-4">
+                                class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 mb-4 text-sm">
                             <option value="">-- Select a template --</option>
-                            <template x-for="t in templates" :key="t.name">
-                                <option :value="t.name" x-text="t.name + ' - ' + t.description"></option>
-                            </template>
+                            <optgroup label="ISP / Network">
+                                <template x-for="t in templates.filter(t => t.category === 'isp')" :key="t.name">
+                                    <option :value="t.name" x-text="t.name + ' — ' + t.description.substring(0,60)"></option>
+                                </template>
+                            </optgroup>
+                            <optgroup label="Network Devices">
+                                <template x-for="t in templates.filter(t => t.category === 'network-devices')" :key="t.name">
+                                    <option :value="t.name" x-text="t.name + ' — ' + t.description.substring(0,60)"></option>
+                                </template>
+                            </optgroup>
+                            <optgroup label="Cloud Providers">
+                                <template x-for="t in templates.filter(t => t.category === 'cloud')" :key="t.name">
+                                    <option :value="t.name" x-text="t.name + ' — ' + t.description.substring(0,60)"></option>
+                                </template>
+                            </optgroup>
+                            <optgroup label="Infrastructure">
+                                <template x-for="t in templates.filter(t => t.category === 'infrastructure')" :key="t.name">
+                                    <option :value="t.name" x-text="t.name + ' — ' + t.description.substring(0,60)"></option>
+                                </template>
+                            </optgroup>
+                            <optgroup label="Other">
+                                <template x-for="t in templates.filter(t => !['isp','network-devices','cloud','infrastructure'].includes(t.category))" :key="t.name">
+                                    <option :value="t.name" x-text="t.name + ' — ' + t.description.substring(0,60)"></option>
+                                </template>
+                            </optgroup>
                         </select>
-
-                        <div x-show="selectedTemplate" class="space-y-4">
+                        <div x-show="selectedTemplate" class="space-y-3">
                             <div>
-                                <label class="block text-sm text-gray-400 mb-1">Datasource</label>
-                                <select x-model="datasource" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2">
-                                    <option value="Prometheus">Prometheus</option>
-                                    <option value="Graphite">Graphite</option>
-                                    <option value="InfluxDB">InfluxDB</option>
+                                <label class="block text-xs text-gray-400 mb-1">Datasource</label>
+                                <select x-model="datasource" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm">
+                                    <optgroup label="ISP / Network">
+                                        <option value="Prometheus">Prometheus</option>
+                                        <option value="Prometheus-SNMP">Prometheus (SNMP Exporter)</option>
+                                        <option value="InfluxDB-Telegraf">InfluxDB (Telegraf)</option>
+                                    </optgroup>
+                                    <optgroup label="Cloud">
+                                        <option value="AWS CloudWatch">AWS CloudWatch</option>
+                                        <option value="Google Cloud Monitoring">Google Cloud Monitoring</option>
+                                        <option value="Azure Monitor">Azure Monitor</option>
+                                    </optgroup>
+                                    <optgroup label="Other">
+                                        <option value="Graphite">Graphite</option>
+                                        <option value="InfluxDB">InfluxDB</option>
+                                        <option value="Loki">Loki</option>
+                                    </optgroup>
                                 </select>
                             </div>
-                            <button @click="createFromTemplate()"
-                                    :disabled="loading"
-                                    class="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-6 py-2 rounded-lg font-medium transition-colors">
-                                Create Dashboard
+                            <button @click="createFromTemplate()" :disabled="loading"
+                                    class="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-4 py-2 rounded-lg font-medium transition-colors text-sm">
+                                <span x-show="!loading">Create Dashboard</span>
+                                <span x-show="loading">Creating...</span>
                             </button>
                         </div>
                     </div>
@@ -138,98 +207,414 @@
                     <!-- Manual Builder -->
                     <div x-show="createMethod === 'manual'" class="bg-gray-800 rounded-lg p-6">
                         <h3 class="text-lg font-semibold mb-4">Dashboard Builder</h3>
-                        <div class="space-y-4">
+                        <div class="space-y-3">
                             <div>
-                                <label class="block text-sm text-gray-400 mb-1">Title</label>
+                                <label class="block text-xs text-gray-400 mb-1">Title</label>
                                 <input type="text" x-model="manualDashboard.title"
-                                       class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:border-orange-500 focus:outline-none">
+                                       class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none">
                             </div>
                             <div>
-                                <label class="block text-sm text-gray-400 mb-1">Datasource</label>
-                                <select x-model="datasource" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2">
+                                <label class="block text-xs text-gray-400 mb-1">Datasource</label>
+                                <select x-model="datasource" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm">
                                     <option value="Prometheus">Prometheus</option>
+                                    <option value="Prometheus-SNMP">Prometheus (SNMP Exporter)</option>
+                                    <option value="AWS CloudWatch">AWS CloudWatch</option>
+                                    <option value="Google Cloud Monitoring">GCP Cloud Monitoring</option>
+                                    <option value="Azure Monitor">Azure Monitor</option>
+                                    <option value="InfluxDB-Telegraf">InfluxDB (Telegraf)</option>
                                     <option value="Graphite">Graphite</option>
-                                    <option value="InfluxDB">InfluxDB</option>
+                                    <option value="Loki">Loki</option>
                                 </select>
                             </div>
-
-                            <!-- Panels -->
                             <div>
                                 <div class="flex justify-between items-center mb-2">
-                                    <label class="text-sm text-gray-400">Panels</label>
-                                    <button @click="addPanel()" class="text-orange-500 hover:text-orange-400 text-sm">+ Add Panel</button>
+                                    <label class="text-xs text-gray-400">Panels</label>
+                                    <button @click="addPanel()" class="text-orange-500 hover:text-orange-400 text-xs">+ Add Panel</button>
                                 </div>
                                 <template x-for="(panel, index) in manualDashboard.panels" :key="index">
-                                    <div class="bg-gray-700 rounded-lg p-4 mb-2">
+                                    <div class="bg-gray-700 rounded-lg p-3 mb-2">
                                         <div class="flex justify-between mb-2">
                                             <input type="text" x-model="panel.title" placeholder="Panel title"
-                                                   class="bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm">
-                                            <button @click="manualDashboard.panels.splice(index, 1)" class="text-red-400 hover:text-red-300 text-sm">Remove</button>
+                                                   class="bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm flex-1 mr-2">
+                                            <button @click="manualDashboard.panels.splice(index, 1)" class="text-red-400 hover:text-red-300 text-xs">Remove</button>
                                         </div>
-                                        <input type="text" x-model="panel.query" placeholder="PromQL query"
-                                               class="w-full bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm font-mono">
-                                        <select x-model="panel.type" class="mt-2 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm">
+                                        <input type="text" x-model="panel.query" placeholder="Query (PromQL / metric name)"
+                                               class="w-full bg-gray-600 border border-gray-500 rounded px-2 py-1 text-xs font-mono mb-2">
+                                        <select x-model="panel.type" class="bg-gray-600 border border-gray-500 rounded px-2 py-1 text-xs">
                                             <option value="timeseries">Time Series</option>
                                             <option value="stat">Stat</option>
                                             <option value="gauge">Gauge</option>
                                             <option value="table">Table</option>
+                                            <option value="barchart">Bar Chart</option>
                                         </select>
                                     </div>
                                 </template>
                             </div>
-
-                            <button @click="createManual()"
-                                    :disabled="loading"
-                                    class="bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-6 py-2 rounded-lg font-medium transition-colors">
-                                Create Dashboard
+                            <button @click="createManual()" :disabled="loading"
+                                    class="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50 px-4 py-2 rounded-lg font-medium transition-colors text-sm">
+                                <span x-show="!loading">Create Dashboard</span>
+                                <span x-show="loading">Creating...</span>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Preview Section -->
+                <!-- Preview -->
                 <div class="bg-gray-800 rounded-lg p-6">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-semibold">Preview</h3>
-                        <div x-show="previewJson" class="space-x-2">
-                            <button @click="copyJson()" class="text-sm text-gray-400 hover:text-white">Copy JSON</button>
-                            <button @click="downloadJson()" class="text-sm text-gray-400 hover:text-white">Download</button>
-                            <button @click="saveDashboard()" class="text-sm bg-green-600 hover:bg-green-700 px-3 py-1 rounded">Save</button>
+                        <div x-show="previewJson" class="flex space-x-2">
+                            <button @click="copyJson()" class="text-xs text-gray-400 hover:text-white px-2 py-1 border border-gray-600 rounded">Copy JSON</button>
+                            <button @click="downloadJson()" class="text-xs text-gray-400 hover:text-white px-2 py-1 border border-gray-600 rounded">Download</button>
+                            <button @click="saveDashboard()" class="text-xs bg-green-600 hover:bg-green-700 px-3 py-1 rounded">Save</button>
                         </div>
                     </div>
-                    <div x-show="!previewJson" class="text-gray-500 text-center py-16">
+                    <div x-show="!previewJson" class="text-gray-500 text-center py-20 text-sm">
                         Dashboard preview will appear here
                     </div>
                     <div x-show="previewJson">
-                        <div class="mb-4 flex items-center space-x-4 text-sm">
-                            <span class="text-gray-400">Title: <span class="text-white" x-text="previewTitle"></span></span>
+                        <div class="mb-3 flex items-center space-x-4 text-xs">
+                            <span class="text-gray-400">Title: <span class="text-white font-medium" x-text="previewTitle"></span></span>
                             <span class="text-gray-400">Panels: <span class="text-white" x-text="previewPanelCount"></span></span>
                         </div>
-                        <pre class="bg-gray-900 rounded-lg p-4 overflow-auto max-h-96 text-sm"><code class="language-json" x-html="highlightedJson"></code></pre>
+                        <pre class="bg-gray-900 rounded-lg p-4 overflow-auto max-h-96 text-xs"><code class="language-json" x-html="highlightedJson"></code></pre>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Templates Tab -->
-        <div x-show="activeTab === 'templates'" x-cloak>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <template x-for="t in templates" :key="t.name">
-                    <div class="bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-colors">
-                        <h3 class="text-lg font-semibold mb-2" x-text="t.name"></h3>
-                        <p class="text-gray-400 text-sm mb-4" x-text="t.description"></p>
-                        <div class="flex flex-wrap gap-2 mb-4">
-                            <template x-for="tag in t.tags" :key="tag">
-                                <span class="bg-gray-700 px-2 py-1 rounded text-xs" x-text="tag"></span>
+        <!-- ═══════════════════════════════════════════════════════════════
+             TAB: ISP / Network
+        ════════════════════════════════════════════════════════════════ -->
+        <div x-show="activeTab === 'isp'" x-cloak>
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold mb-1">ISP & Network Device Monitoring</h2>
+                <p class="text-gray-400 text-sm">Pre-built dashboards for Tier-1 ISP operations and enterprise network hardware.</p>
+            </div>
+
+            <!-- Vendor selector -->
+            <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                <h3 class="text-sm font-semibold text-gray-300 mb-4">Network Hardware Vendor</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <template x-for="v in networkVendors" :key="v.id">
+                        <div @click="selectedVendor = v.id"
+                             :class="selectedVendor === v.id ? 'selected' : ''"
+                             class="vendor-card border-2 border-gray-600 rounded-lg p-4 cursor-pointer text-center">
+                            <div class="text-2xl mb-2" x-text="v.icon"></div>
+                            <div class="font-medium text-sm" x-text="v.name"></div>
+                            <div class="text-xs text-gray-400 mt-1" x-text="v.platforms"></div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- ISP Templates grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <template x-for="t in ispTemplates()" :key="t.name">
+                    <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-gray-500 transition-colors">
+                        <div class="flex items-start justify-between mb-2">
+                            <h3 class="font-semibold text-sm" x-text="t.name"></h3>
+                            <span class="text-xs px-2 py-0.5 rounded"
+                                  :class="t.category === 'isp' ? 'bg-orange-900/50 text-orange-300' : 'bg-blue-900/50 text-blue-300'"
+                                  x-text="t.category"></span>
+                        </div>
+                        <p class="text-gray-400 text-xs mb-3 leading-relaxed" x-text="t.description"></p>
+                        <div class="flex flex-wrap gap-1 mb-3">
+                            <template x-for="tag in t.tags.slice(0,4)" :key="tag">
+                                <span class="bg-gray-700 px-2 py-0.5 rounded text-xs text-gray-300" x-text="tag"></span>
                             </template>
                         </div>
                         <div class="flex space-x-2">
                             <button @click="useTemplate(t.name)"
-                                    class="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded text-sm">
+                                    class="flex-1 bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded text-xs font-medium">
                                 Use Template
                             </button>
                             <button @click="previewTemplate(t.name)"
-                                    class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm">
+                                    class="flex-1 bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-xs">
+                                Preview
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- SNMP Setup Guide -->
+            <div class="mt-8 bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 class="font-semibold mb-3">SNMP Exporter Setup Guide</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                    <div>
+                        <p class="text-gray-400 mb-3">Add devices to inventory and generate configs:</p>
+                        <pre class="bg-gray-900 rounded p-3 text-xs font-mono overflow-x-auto"><code class="text-green-400"># Add a Cisco router
+python setup/scripts/setup_network_devices.py add \
+  --vendor cisco \
+  --name core-router-01 \
+  --host 10.0.0.1 \
+  --community readonly \
+  --role pe
+
+# Add a Juniper PE router
+python setup/scripts/setup_network_devices.py add \
+  --vendor juniper \
+  --name pe-01 \
+  --host 10.0.1.1 \
+  --version v3 \
+  --v3-username monitor
+
+# Generate SNMP exporter + Prometheus configs
+python setup/scripts/setup_network_devices.py generate</code></pre>
+                    </div>
+                    <div>
+                        <p class="text-gray-400 mb-3">Device management commands:</p>
+                        <pre class="bg-gray-900 rounded p-3 text-xs font-mono overflow-x-auto"><code class="text-green-400"># List all devices
+python setup/scripts/setup_network_devices.py list
+
+# Test ICMP reachability
+python setup/scripts/manage_devices.py ping
+
+# Test SNMP connectivity
+python setup/scripts/manage_devices.py snmp-test
+
+# Export inventory to CSV
+python setup/scripts/manage_devices.py export --format csv
+
+# Provision all ISP dashboards to Grafana
+python setup/scripts/provision_dashboards.py manifest isp_manifest.yml</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             TAB: Multi-Cloud
+        ════════════════════════════════════════════════════════════════ -->
+        <div x-show="activeTab === 'cloud'" x-cloak>
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold mb-1">Multi-Cloud Monitoring</h2>
+                <p class="text-gray-400 text-sm">Configure datasources and deploy dashboards for AWS, GCP, and Azure.</p>
+            </div>
+
+            <!-- Cloud provider selector -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <template x-for="p in cloudProviders" :key="p.id">
+                    <div @click="selectedCloud = p.id"
+                         :class="selectedCloud === p.id ? 'selected border-blue-500' : 'border-gray-600 hover:border-gray-500'"
+                         class="provider-card border-2 rounded-xl p-5 cursor-pointer transition-colors">
+                        <div class="flex items-center space-x-3 mb-3">
+                            <span class="text-3xl" x-text="p.icon"></span>
+                            <div>
+                                <div class="font-semibold" x-text="p.name"></div>
+                                <div class="text-xs text-gray-400" x-text="p.subtitle"></div>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-1">
+                            <template x-for="svc in p.services" :key="svc">
+                                <span class="text-xs bg-gray-700 px-2 py-0.5 rounded" x-text="svc"></span>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Cloud setup panel -->
+            <div x-show="selectedCloud === 'aws'" class="bg-gray-800 rounded-xl p-6 mb-6">
+                <h3 class="font-semibold mb-4 flex items-center">
+                    <span class="text-2xl mr-2">☁️</span> AWS CloudWatch Setup
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">AWS Access Key ID</label>
+                            <input type="text" x-model="cloudConfig.aws.accessKey" placeholder="AKIA..."
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">AWS Secret Access Key</label>
+                            <input type="password" x-model="cloudConfig.aws.secretKey"
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Default Region</label>
+                            <select x-model="cloudConfig.aws.region" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm">
+                                <option>us-east-1</option><option>us-east-2</option><option>us-west-1</option>
+                                <option>us-west-2</option><option>eu-west-1</option><option>eu-west-2</option>
+                                <option>eu-central-1</option><option>ap-southeast-1</option><option>ap-northeast-1</option>
+                                <option>ap-south-1</option><option>sa-east-1</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Assume Role ARN (optional)</label>
+                            <input type="text" x-model="cloudConfig.aws.roleArn" placeholder="arn:aws:iam::..."
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none font-mono">
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-2">Or use CLI to configure:</p>
+                        <pre class="bg-gray-900 rounded p-3 text-xs font-mono overflow-x-auto"><code class="text-green-400">python setup/scripts/setup_cloud_providers.py aws \
+  --region us-east-1 \
+  --access-key AKIA... \
+  --secret-key ...
+
+# Or with IAM Role assumption
+python setup/scripts/setup_cloud_providers.py aws \
+  --region us-east-1 \
+  --role-arn arn:aws:iam::123456789:role/GrafanaMonitoring
+
+# Required IAM permissions:
+#   cloudwatch:GetMetricData
+#   cloudwatch:ListMetrics
+#   ec2:DescribeInstances
+#   tag:GetResources</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="selectedCloud === 'gcp'" class="bg-gray-800 rounded-xl p-6 mb-6">
+                <h3 class="font-semibold mb-4 flex items-center">
+                    <span class="text-2xl mr-2">🟡</span> GCP Cloud Monitoring Setup
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">GCP Project ID</label>
+                            <input type="text" x-model="cloudConfig.gcp.projectId" placeholder="my-gcp-project"
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Service Account Key File Path</label>
+                            <input type="text" x-model="cloudConfig.gcp.keyFile" placeholder="/etc/grafana/sa-key.json"
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none font-mono">
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-2">CLI setup:</p>
+                        <pre class="bg-gray-900 rounded p-3 text-xs font-mono overflow-x-auto"><code class="text-green-400">python setup/scripts/setup_cloud_providers.py gcp \
+  --project my-gcp-project \
+  --key-file /path/to/service-account.json
+
+# Required roles:
+#   roles/monitoring.viewer
+#   roles/compute.viewer (for GCE labels)
+#   roles/container.viewer (for GKE)</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="selectedCloud === 'azure'" class="bg-gray-800 rounded-xl p-6 mb-6">
+                <h3 class="font-semibold mb-4 flex items-center">
+                    <span class="text-2xl mr-2">🔷</span> Azure Monitor Setup
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Tenant ID</label>
+                            <input type="text" x-model="cloudConfig.azure.tenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx"
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Client ID (App Registration)</label>
+                            <input type="text" x-model="cloudConfig.azure.clientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx"
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Client Secret</label>
+                            <input type="password" x-model="cloudConfig.azure.clientSecret"
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Subscription ID (optional)</label>
+                            <input type="text" x-model="cloudConfig.azure.subscriptionId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx"
+                                   class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:border-blue-500 focus:outline-none font-mono">
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-2">CLI setup:</p>
+                        <pre class="bg-gray-900 rounded p-3 text-xs font-mono overflow-x-auto"><code class="text-green-400">python setup/scripts/setup_cloud_providers.py azure \
+  --tenant-id &lt;tenant-id&gt; \
+  --client-id &lt;client-id&gt; \
+  --client-secret &lt;secret&gt; \
+  --subscription-id &lt;sub-id&gt;
+
+# App Registration required permissions:
+#   Microsoft.Insights/*/read
+#   Microsoft.Monitor/*/read</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cloud templates -->
+            <div class="mt-2">
+                <h3 class="font-semibold mb-4">Cloud Dashboards</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <template x-for="t in cloudTemplates()" :key="t.name">
+                        <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-blue-600 transition-colors">
+                            <div class="flex items-start justify-between mb-2">
+                                <h4 class="font-semibold text-sm" x-text="t.name"></h4>
+                                <span class="text-xs bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded">cloud</span>
+                            </div>
+                            <p class="text-gray-400 text-xs mb-3 leading-relaxed" x-text="t.description"></p>
+                            <div class="flex flex-wrap gap-1 mb-3">
+                                <template x-for="tag in t.tags.slice(0,4)" :key="tag">
+                                    <span class="text-xs bg-gray-700 px-2 py-0.5 rounded text-gray-300" x-text="tag"></span>
+                                </template>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button @click="useTemplate(t.name)"
+                                        class="flex-1 bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-xs font-medium">
+                                    Use Template
+                                </button>
+                                <button @click="previewTemplate(t.name)"
+                                        class="flex-1 bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-xs">
+                                    Preview
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             TAB: All Templates
+        ════════════════════════════════════════════════════════════════ -->
+        <div x-show="activeTab === 'templates'" x-cloak>
+            <div class="mb-4 flex items-center space-x-3">
+                <input type="text" x-model="templateSearch" placeholder="Search templates..."
+                       class="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:border-orange-500 focus:outline-none w-64">
+                <select x-model="templateCategory" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm">
+                    <option value="">All Categories</option>
+                    <option value="isp">ISP</option>
+                    <option value="network-devices">Network Devices</option>
+                    <option value="cloud">Cloud</option>
+                    <option value="infrastructure">Infrastructure</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <template x-for="t in filteredTemplates()" :key="t.name">
+                    <div class="bg-gray-800 rounded-lg p-5 hover:bg-gray-750 transition-colors border border-gray-700 hover:border-gray-500">
+                        <div class="flex items-start justify-between mb-2">
+                            <h3 class="font-semibold text-sm" x-text="t.name"></h3>
+                            <span class="text-xs px-2 py-0.5 rounded ml-2 whitespace-nowrap"
+                                  :class="{
+                                    'bg-orange-900/50 text-orange-300': t.category === 'isp',
+                                    'bg-purple-900/50 text-purple-300': t.category === 'network-devices',
+                                    'bg-blue-900/50 text-blue-300': t.category === 'cloud',
+                                    'bg-gray-700 text-gray-300': !['isp','network-devices','cloud'].includes(t.category)
+                                  }"
+                                  x-text="t.category"></span>
+                        </div>
+                        <p class="text-gray-400 text-xs mb-3 leading-relaxed" x-text="t.description"></p>
+                        <div class="flex flex-wrap gap-1 mb-3">
+                            <template x-for="tag in t.tags.slice(0,4)" :key="tag">
+                                <span class="bg-gray-700 px-2 py-0.5 rounded text-xs" x-text="tag"></span>
+                            </template>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button @click="useTemplate(t.name)"
+                                    class="bg-orange-600 hover:bg-orange-700 px-4 py-1.5 rounded text-xs font-medium">
+                                Use Template
+                            </button>
+                            <button @click="previewTemplate(t.name)"
+                                    class="bg-gray-700 hover:bg-gray-600 px-4 py-1.5 rounded text-xs">
                                 Preview
                             </button>
                         </div>
@@ -238,46 +623,46 @@
             </div>
         </div>
 
-        <!-- Dashboards Tab -->
+        <!-- ═══════════════════════════════════════════════════════════════
+             TAB: My Dashboards
+        ════════════════════════════════════════════════════════════════ -->
         <div x-show="activeTab === 'dashboards'" x-cloak>
-            <div class="mb-6">
+            <div class="mb-5 flex items-center space-x-3">
                 <input type="text" x-model="searchQuery" @input="searchDashboards()"
                        placeholder="Search dashboards..."
-                       class="w-full max-w-md bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:border-orange-500 focus:outline-none">
+                       class="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:border-orange-500 focus:outline-none max-w-sm">
             </div>
-
-            <div x-show="dashboards.length === 0" class="text-center text-gray-500 py-16">
-                No dashboards found. Create your first one!
+            <div x-show="dashboards.length === 0" class="text-center text-gray-500 py-20 text-sm">
+                No dashboards yet. Create your first one!
             </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 <template x-for="d in dashboards" :key="d.uid">
-                    <div class="bg-gray-800 rounded-lg p-6 hover:bg-gray-750 transition-colors">
+                    <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-gray-500 transition-colors">
                         <div class="flex justify-between items-start mb-2">
-                            <h3 class="text-lg font-semibold" x-text="d.title"></h3>
-                            <button @click="deleteDashboard(d.uid)" class="text-red-400 hover:text-red-300">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <h3 class="font-semibold text-sm" x-text="d.title"></h3>
+                            <button @click="deleteDashboard(d.uid)" class="text-red-400 hover:text-red-300 ml-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                 </svg>
                             </button>
                         </div>
-                        <p class="text-gray-400 text-sm mb-2" x-text="d.description || 'No description'"></p>
-                        <div class="text-xs text-gray-500 mb-4">
-                            <span x-text="'Updated: ' + new Date(d.updated_at).toLocaleDateString()"></span>
-                            <span x-show="d.template_name" x-text="' • Template: ' + d.template_name"></span>
+                        <p class="text-gray-400 text-xs mb-2" x-text="d.description || 'No description'"></p>
+                        <div class="text-xs text-gray-500 mb-3">
+                            <span x-text="new Date(d.updated_at).toLocaleDateString()"></span>
+                            <span x-show="d.template_name" class="ml-2 text-orange-400" x-text="'• ' + d.template_name"></span>
                         </div>
-                        <div class="flex flex-wrap gap-2 mb-4">
+                        <div class="flex flex-wrap gap-1 mb-3">
                             <template x-for="tag in d.tags" :key="tag">
-                                <span class="bg-gray-700 px-2 py-1 rounded text-xs" x-text="tag"></span>
+                                <span class="bg-gray-700 px-2 py-0.5 rounded text-xs" x-text="tag"></span>
                             </template>
                         </div>
                         <div class="flex space-x-2">
                             <button @click="viewDashboard(d.uid)"
-                                    class="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded text-sm">
+                                    class="flex-1 bg-orange-600 hover:bg-orange-700 px-3 py-1.5 rounded text-xs font-medium">
                                 View JSON
                             </button>
                             <button @click="exportDashboard(d.uid)"
-                                    class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm">
+                                    class="flex-1 bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-xs">
                                 Export
                             </button>
                         </div>
@@ -288,24 +673,51 @@
     </div>
 
     <!-- Settings Modal -->
-    <div x-show="showSettings" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div class="bg-gray-800 rounded-lg p-6 w-full max-w-md" @click.away="showSettings = false">
-            <h2 class="text-xl font-semibold mb-4">Settings</h2>
+    <div x-show="showSettings" x-cloak class="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-xl p-6 w-full max-w-lg" @click.away="showSettings = false">
+            <h2 class="text-lg font-semibold mb-5">Settings</h2>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm text-gray-400 mb-1">Default Datasource</label>
-                    <input type="text" x-model="settings.defaultDatasource"
-                           class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2">
+                    <label class="block text-xs text-gray-400 mb-1">Default Datasource</label>
+                    <select x-model="settings.defaultDatasource"
+                            class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm">
+                        <option value="Prometheus">Prometheus</option>
+                        <option value="Prometheus-SNMP">Prometheus (SNMP Exporter)</option>
+                        <option value="AWS CloudWatch">AWS CloudWatch</option>
+                        <option value="Google Cloud Monitoring">GCP Cloud Monitoring</option>
+                        <option value="Azure Monitor">Azure Monitor</option>
+                        <option value="InfluxDB-Telegraf">InfluxDB (Telegraf)</option>
+                        <option value="Graphite">Graphite</option>
+                    </select>
                 </div>
                 <div>
-                    <label class="block text-sm text-gray-400 mb-1">OpenAI API Key (for NLP)</label>
-                    <input type="password" x-model="settings.openaiKey"
-                           class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2">
+                    <label class="block text-xs text-gray-400 mb-1">AI API Key (for NLP generation)</label>
+                    <input type="password" x-model="settings.anthropicKey" placeholder="Anthropic key (recommended)"
+                           class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm mb-2">
+                    <input type="password" x-model="settings.openaiKey" placeholder="OpenAI key (fallback)"
+                           class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div class="border-t border-gray-700 pt-4">
+                    <label class="block text-xs text-gray-400 mb-2">Organization Type</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" x-model="settings.orgType" value="isp" class="accent-orange-500">
+                            <span class="text-sm">Tier-1 ISP</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" x-model="settings.orgType" value="enterprise" class="accent-orange-500">
+                            <span class="text-sm">Enterprise</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" x-model="settings.orgType" value="cloud" class="accent-orange-500">
+                            <span class="text-sm">Cloud-Native</span>
+                        </label>
+                    </div>
                 </div>
             </div>
             <div class="flex justify-end mt-6 space-x-2">
-                <button @click="showSettings = false" class="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
-                <button @click="saveSettings()" class="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded">Save</button>
+                <button @click="showSettings = false" class="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+                <button @click="saveSettings()" class="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded text-sm font-medium">Save</button>
             </div>
         </div>
     </div>
@@ -321,18 +733,48 @@
                 // Data
                 templates: [],
                 dashboards: [],
-                stats: { dashboards: 0 },
+                stats: { dashboards: 0, datasources: 0 },
+
+                // ISP / Network
+                selectedVendor: 'cisco',
+                networkVendors: [
+                    { id: 'cisco',    name: 'Cisco',      icon: '🔵', platforms: 'IOS / IOS-XE / IOS-XR / NX-OS' },
+                    { id: 'juniper',  name: 'Juniper',    icon: '🟢', platforms: 'MX / QFX / EX / SRX / PTX' },
+                    { id: 'paloalto', name: 'Palo Alto',  icon: '🟠', platforms: 'PA-Series / VM-Series / CN-Series' },
+                    { id: 'fortinet', name: 'Fortinet',   icon: '🔴', platforms: 'FortiGate / FortiManager' },
+                ],
+
+                // Cloud
+                selectedCloud: 'aws',
+                cloudProviders: [
+                    {
+                        id: 'aws', name: 'Amazon Web Services', icon: '☁️', subtitle: 'CloudWatch',
+                        services: ['EC2', 'RDS', 'ALB', 'Lambda', 'ECS', 'Direct Connect'],
+                    },
+                    {
+                        id: 'gcp', name: 'Google Cloud Platform', icon: '🟡', subtitle: 'Cloud Monitoring',
+                        services: ['Compute Engine', 'GKE', 'Cloud SQL', 'Cloud Run', 'Interconnect'],
+                    },
+                    {
+                        id: 'azure', name: 'Microsoft Azure', icon: '🔷', subtitle: 'Azure Monitor',
+                        services: ['VMs', 'AKS', 'SQL', 'Azure Firewall', 'ExpressRoute'],
+                    },
+                ],
+                cloudConfig: {
+                    aws:   { accessKey: '', secretKey: '', region: 'us-east-1', roleArn: '' },
+                    gcp:   { projectId: '', keyFile: '' },
+                    azure: { tenantId: '', clientId: '', clientSecret: '', subscriptionId: '' },
+                },
 
                 // Form state
                 nlpPrompt: '',
                 datasource: 'Prometheus',
                 selectedTemplate: '',
                 searchQuery: '',
+                templateSearch: '',
+                templateCategory: '',
 
-                manualDashboard: {
-                    title: 'My Dashboard',
-                    panels: []
-                },
+                manualDashboard: { title: 'My Dashboard', panels: [] },
 
                 // Preview
                 previewJson: null,
@@ -343,13 +785,16 @@
                 // Settings
                 settings: {
                     defaultDatasource: 'Prometheus',
-                    openaiKey: ''
+                    anthropicKey: '',
+                    openaiKey: '',
+                    orgType: 'isp',
                 },
 
                 async init() {
-                    await this.loadTemplates();
-                    await this.loadDashboards();
-                    await this.loadStats();
+                    const saved = localStorage.getItem('agt-settings');
+                    if (saved) this.settings = { ...this.settings, ...JSON.parse(saved) };
+                    this.datasource = this.settings.defaultDatasource || 'Prometheus';
+                    await Promise.all([this.loadTemplates(), this.loadDashboards(), this.loadStats()]);
                 },
 
                 async loadTemplates() {
@@ -357,16 +802,37 @@
                     const data = await res.json();
                     this.templates = data.templates;
                 },
-
                 async loadDashboards() {
                     const res = await fetch('/api/dashboards');
                     const data = await res.json();
                     this.dashboards = data.dashboards;
                 },
-
                 async loadStats() {
                     const res = await fetch('/api/stats');
                     this.stats = await res.json();
+                },
+
+                // Filtered template lists
+                ispTemplates() {
+                    const v = this.selectedVendor;
+                    return this.templates.filter(t => {
+                        if (t.category === 'isp') return true;
+                        if (t.category === 'network-devices') return t.tags.includes(v);
+                        return false;
+                    });
+                },
+                cloudTemplates() {
+                    return this.templates.filter(t => t.category === 'cloud');
+                },
+                filteredTemplates() {
+                    return this.templates.filter(t => {
+                        const matchSearch = !this.templateSearch ||
+                            t.name.includes(this.templateSearch) ||
+                            t.description.toLowerCase().includes(this.templateSearch.toLowerCase()) ||
+                            t.tags.some(g => g.includes(this.templateSearch.toLowerCase()));
+                        const matchCat = !this.templateCategory || t.category === this.templateCategory;
+                        return matchSearch && matchCat;
+                    });
                 },
 
                 async generateFromNLP() {
@@ -375,16 +841,10 @@
                         const res = await fetch('/api/generate', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                prompt: this.nlpPrompt,
-                                datasource: this.datasource
-                            })
+                            body: JSON.stringify({ prompt: this.nlpPrompt, datasource: this.datasource })
                         });
-                        const data = await res.json();
-                        this.setPreview(data);
-                    } catch (e) {
-                        alert('Error generating dashboard');
-                    }
+                        this.setPreview(await res.json());
+                    } catch { alert('Error generating dashboard'); }
                     this.loading = false;
                 },
 
@@ -396,11 +856,9 @@
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ datasource: this.datasource })
                         });
-                        const data = await res.json();
-                        this.setPreview(data);
-                    } catch (e) {
-                        alert('Error creating dashboard');
-                    }
+                        this.setPreview(await res.json());
+                        this.activeTab = 'create';
+                    } catch { alert('Error creating dashboard'); }
                     this.loading = false;
                 },
 
@@ -419,11 +877,8 @@
                         });
                         const data = await res.json();
                         this.setPreview({ title: data.title, json: data.json, panels: data.json.panels.length });
-                        await this.loadDashboards();
-                        await this.loadStats();
-                    } catch (e) {
-                        alert('Error creating dashboard');
-                    }
+                        await Promise.all([this.loadDashboards(), this.loadStats()]);
+                    } catch { alert('Error creating dashboard'); }
                     this.loading = false;
                 },
 
@@ -432,14 +887,11 @@
                     this.previewTitle = data.title;
                     this.previewPanelCount = data.panels;
                     this.highlightedJson = hljs.highlight(JSON.stringify(data.json, null, 2), { language: 'json' }).value;
+                    this.activeTab = 'create';
                 },
 
                 addPanel() {
-                    this.manualDashboard.panels.push({
-                        title: 'New Panel',
-                        query: '',
-                        type: 'timeseries'
-                    });
+                    this.manualDashboard.panels.push({ title: 'New Panel', query: '', type: 'timeseries' });
                 },
 
                 useTemplate(name) {
@@ -454,23 +906,19 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ datasource: this.datasource })
                     });
-                    const data = await res.json();
-                    this.activeTab = 'create';
-                    this.setPreview(data);
+                    this.setPreview(await res.json());
                 },
 
                 async viewDashboard(uid) {
                     const res = await fetch(`/api/dashboards/${uid}`);
                     const data = await res.json();
-                    this.activeTab = 'create';
                     this.setPreview({ title: data.title, json: data.json_data, panels: data.json_data.panels.length });
                 },
 
                 async deleteDashboard(uid) {
                     if (!confirm('Delete this dashboard?')) return;
                     await fetch(`/api/dashboards/${uid}`, { method: 'DELETE' });
-                    await this.loadDashboards();
-                    await this.loadStats();
+                    await Promise.all([this.loadDashboards(), this.loadStats()]);
                 },
 
                 async exportDashboard(uid) {
@@ -481,7 +929,7 @@
 
                 async saveDashboard() {
                     if (!this.previewJson) return;
-                    const res = await fetch('/api/dashboards', {
+                    await fetch('/api/dashboards', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -491,43 +939,36 @@
                             panels: this.previewJson.panels
                         })
                     });
-                    await this.loadDashboards();
-                    await this.loadStats();
+                    await Promise.all([this.loadDashboards(), this.loadStats()]);
                     alert('Dashboard saved!');
                 },
 
                 async searchDashboards() {
                     const res = await fetch(`/api/dashboards?search=${encodeURIComponent(this.searchQuery)}`);
-                    const data = await res.json();
-                    this.dashboards = data.dashboards;
+                    this.dashboards = (await res.json()).dashboards;
                 },
 
                 copyJson() {
                     navigator.clipboard.writeText(JSON.stringify(this.previewJson, null, 2));
                 },
-
                 downloadJson() {
                     this.downloadFile(JSON.stringify(this.previewJson, null, 2), `${this.previewTitle || 'dashboard'}.json`);
                 },
-
                 downloadFile(content, filename) {
                     const blob = new Blob([content], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    a.click();
+                    a.href = url; a.download = filename; a.click();
                     URL.revokeObjectURL(url);
                 },
 
                 saveSettings() {
                     localStorage.setItem('agt-settings', JSON.stringify(this.settings));
+                    this.datasource = this.settings.defaultDatasource;
                     this.showSettings = false;
                 },
 
-                loadTemplateInfo() {
-                    // Template info is already in the templates array
-                }
+                loadTemplateInfo() { /* info already in templates array */ }
             }
         }
     </script>
